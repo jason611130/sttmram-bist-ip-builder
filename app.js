@@ -217,6 +217,16 @@ function guide(c,a){return `STT-MRAM BIST 整合說明
 名目測試操作：${a.count} × DEPTH = ${a.count*c.depth} 次 memory operations
 主要 fault：${a.faults}
 
+Memory geometry（必須依 datasheet）
+---------------------------------
+Depth = ${c.depth} 個可定址 words
+Data width = ${c.dataWidth} bits/word
+Address width = ${c.addrWidth} bits
+Macro organization = ${c.depth} × ${c.dataWidth} bits
+
+注意：Depth 是 datasheet organization 中「×」左邊的數字，不是總容量。
+例如 256 × 32 macro 應填 Depth=256、Data width=32、Address width=8。
+
 訊號方向
 --------
 BIST → Memory（BIST output / Memory input）

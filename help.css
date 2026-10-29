@@ -1,0 +1,11 @@
+.field-help {
+  color: #7f9099;
+  font: 11px/1.55 Inter, "Noto Sans TC", system-ui, sans-serif;
+  margin-top: 1px;
+}
+.field-help::before {
+  content: "DATASHEET ";
+  color: #ffbc57;
+  font: 9px "Cascadia Code", Consolas, monospace;
+  letter-spacing: .08em;
+}
