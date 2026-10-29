@@ -6,6 +6,7 @@
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 SystemVerilog BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="help.css" />
 </head>
 <body>
   <header class="topbar">
@@ -36,9 +37,9 @@
 
         <fieldset>
           <legend>Memory geometry</legend>
-          <label>Memory depth<input id="depth" type="number" min="2" value="256" /></label>
+          <label>Memory depth（依 datasheet）<input id="depth" type="number" min="2" value="256" /><small class="field-help">填入可定址的 word 數，不是總 bit 數。例：256 × 32 macro → Depth = 256。</small></label>
           <div class="grid2">
-            <label>Data width<input id="dataWidth" type="number" min="2" value="32" /></label>
+            <label>Data width（依 datasheet）<input id="dataWidth" type="number" min="2" value="32" /></label>
             <label>Address width<input id="addrWidth" type="number" min="1" value="8" /></label>
           </div>
           <label class="check"><input id="autoAddr" type="checkbox" checked /><span>依 depth 自動計算 address width</span></label>
