@@ -1,7 +1,19 @@
 const $ = (id) => document.getElementById(id);
-const ids = ["depth","dataWidth","addrWidth","autoAddr","algorithm","paperLiteral","readLatency","writeLatency","useReady","ceLow","weLow","maskLow","macroModule","pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"];
-const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algorithm:"wom26",paperLiteral:false,readLatency:1,writeLatency:1,useReady:false,ceLow:true,weLow:true,maskLow:true,macroModule:"STTMRAM_MACRO",pinClk:"CLK",pinCe:"CEN",pinWe:"WEN",pinAddr:"A",pinDin:"D",pinDout:"Q",pinMask:"BWEN"};
+const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoRetentionWeak","algoBurninBinary","algoBurninLinear","algoTrdfDft","paperLiteral","readLatency","writeLatency","useReady","ceLow","weLow","maskLow","macroModule","pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"];
+const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoRetentionWeak:false,algoBurninBinary:false,algoBurninLinear:false,algoTrdfDft:false,paperLiteral:false,readLatency:1,writeLatency:1,useReady:false,ceLow:true,weLow:true,maskLow:true,macroModule:"STTMRAM_MACRO",pinClk:"CLK",pinCe:"CEN",pinWe:"WEN",pinAddr:"A",pinDin:"D",pinDout:"Q",pinMask:"BWEN"};
 let files = {}, activeFile = "core";
+
+const faultUniverse = [
+  {id:"SAF",name:"Stuck-at fault",type:"永久"},
+  {id:"TF",name:"Transition fault",type:"永久"},
+  {id:"RDF",name:"Read destructive fault",type:"永久"},
+  {id:"IRF",name:"Incorrect read fault",type:"永久"},
+  {id:"CFwd",name:"Write-disturb coupling",type:"永久"},
+  {id:"dIRF",name:"Dynamic incorrect read",type:"動態"},
+  {id:"RTF",name:"Retention fault",type:"暫態"},
+  {id:"TRDF",name:"Transient read disturb",type:"暫態"},
+  {id:"TWF",name:"Transient write fault",type:"暫態"}
+];
 
 function readConfig(){
   const c={}; ids.forEach(id=>{const e=$(id);c[id]=e.type==="checkbox"?e.checked:(e.type==="number"?Number(e.value):e.value.trim())});
@@ -9,15 +21,7 @@ function readConfig(){
   return c;
 }
 
-function algorithm(c){
-  if(c.algorithm==="marchc") return {name:"March C− 10N",count:10,faults:"SAF · TF · AF · CF",elements:[
-    {d:0,o:[["w","0"]]},{d:0,o:[["r","0"],["w","1"]]},{d:0,o:[["r","1"],["w","0"]]},
-    {d:1,o:[["r","0"],["w","1"]]},{d:1,o:[["r","1"],["w","0"]]},{d:0,o:[["r","0"]]}
-  ]};
-  if(c.algorithm==="dirf14") return {name:"dIRF March 14N",count:14,faults:"dIRF · TF · SAF",elements:[
-    {d:0,o:[["w","0"]]},{d:0,o:[["r","0"],["w","1"],["r","1"],["r","1"],["r","1"],["r","1"]]},
-    {d:1,o:[["r","1"],["w","0"],["r","0"],["r","0"],["r","0"],["r","0"]]},{d:1,o:[["r","0"]]}
-  ]};
+function womElements(c){
   const tail = c.paperLiteral ? [
     {d:0,o:[["r","00"],["w","01"],["r","01"]]},{d:0,o:[["r","01"],["w","10"],["r","10"]]},
     {d:1,o:[["r","01"],["w","10"],["r","10"]]},{d:1,o:[["r","10"],["w","11"],["r","11"]]},{d:0,o:[["r","11"]]}
@@ -25,14 +29,47 @@ function algorithm(c){
     {d:0,o:[["r","00"],["w","01"],["r","01"]]},{d:0,o:[["r","01"],["w","10"],["r","10"]]},
     {d:1,o:[["r","10"],["w","01"],["r","01"]]},{d:1,o:[["r","01"],["w","11"],["r","11"]]},{d:0,o:[["r","11"]]}
   ];
-  return {name:c.paperLiteral?"WOM 26N（論文原文）":"WOM 26N（狀態一致版）",count:26,faults:"SAF · TF · IRF · RDF · CFwd",elements:[
+  return [
     {d:0,o:[["w","00"]]},{d:0,o:[["r","00"],["w","11"],["r","11"]]},{d:1,o:[["r","11"],["w","00"],["r","00"]]},
     {d:1,o:[["r","00"],["w","11"],["r","11"]]},{d:1,o:[["r","11"],["w","00"]]},{d:0,o:[["r","00"]]},...tail
-  ]};
+  ];
+}
+
+function selectedAlgorithms(c){
+  const list=[];
+  if(c.algoWom26) list.push({id:"wom26",name:c.paperLiteral?"WOM 26N（論文原文）":"WOM 26N（狀態一致版）",short:"WOM 26N",count:26,faults:["SAF","TF","RDF","IRF","CFwd"],deterministic:true,kind:"digital",elements:womElements(c)});
+  if(c.algoDirf14) list.push({id:"dirf14",name:"dIRF March 14N",short:"dIRF 14N",count:14,faults:["dIRF"],deterministic:true,kind:"digital",elements:[
+    {d:0,o:[["w","0"]]},{d:0,o:[["r","0"],["w","1"],["r","1"],["r","1"],["r","1"],["r","1"]]},
+    {d:1,o:[["r","1"],["w","0"],["r","0"],["r","0"],["r","0"],["r","0"]]},{d:1,o:[["r","0"]]}
+  ]});
+  if(c.algoMarchC) list.push({id:"marchc",name:"March C− 10N",short:"March C−",count:10,faults:["SAF","TF"],deterministic:true,kind:"digital",elements:[
+    {d:0,o:[["w","0"]]},{d:0,o:[["r","0"],["w","1"]]},{d:0,o:[["r","1"],["w","0"]]},
+    {d:1,o:[["r","0"],["w","1"]]},{d:1,o:[["r","1"],["w","0"]]},{d:0,o:[["r","0"]]}
+  ]});
+  if(c.algoRetentionWeak) list.push({id:"retentionWeak",name:"Weak-current retention test",short:"Weak-current RTF",count:null,faults:["RTF"],deterministic:false,kind:"special",elements:[]});
+  if(c.algoBurninBinary) list.push({id:"burninBinary",name:"Burn-in binary-search retention test",short:"Binary RTF",count:null,faults:["RTF"],deterministic:false,kind:"special",elements:[]});
+  if(c.algoBurninLinear) list.push({id:"burninLinear",name:"Burn-in linear-search retention test",short:"Linear RTF",count:null,faults:["RTF"],deterministic:false,kind:"special",elements:[]});
+  if(c.algoTrdfDft) list.push({id:"trdfDft",name:"TRDF current-tracking DfT",short:"TRDF DfT",count:null,faults:["TRDF"],deterministic:false,kind:"analog",elements:[]});
+  return list;
+}
+
+function algorithm(c){
+  const methods=selectedAlgorithms(c), digital=methods.filter(x=>x.kind==="digital");
+  const faultSet=new Set(methods.flatMap(x=>x.faults));
+  const deterministicSet=new Set(methods.filter(x=>x.deterministic).flatMap(x=>x.faults));
+  return {
+    name:digital.length?digital.map(x=>x.name).join(" + "):"尚未選擇數位 March test",
+    count:digital.reduce((sum,x)=>sum+x.count,0),
+    faults:[...faultSet],deterministic:[...deterministicSet],methods,
+    elements:digital.flatMap(x=>x.elements)
+  };
 }
 
 function validate(c){
   const errors=[];
+  const methods=selectedAlgorithms(c);
+  if(!methods.length)errors.push("請至少選擇一個測試演算法");
+  else if(!methods.some(x=>x.kind==="digital"))errors.push("產生 BIST RTL 至少需要一個 Digital March 演算法");
   if(!Number.isInteger(c.depth)||c.depth<2)errors.push("Depth 必須是大於 1 的整數");
   if(!Number.isInteger(c.dataWidth)||c.dataWidth<2)errors.push("Data width 必須至少為 2");
   if((1<<Math.min(c.addrWidth,30))<c.depth && c.addrWidth<=30)errors.push("Address width 無法涵蓋 depth");
@@ -71,6 +108,7 @@ module sttmram_bist_core #(
   input  logic mem_ready
 );
   localparam int ELEM_COUNT=${a.elements.length};
+  localparam int ELEM_WIDTH=(ELEM_COUNT <= 1) ? 1 : $clog2(ELEM_COUNT);
   localparam logic [DATA_WIDTH-1:0] PAT_00='0, PAT_11='1;
   function automatic logic [DATA_WIDTH-1:0] alt01;
     for(int i=0;i<DATA_WIDTH;i++) alt01[i]=i[0];
@@ -79,7 +117,8 @@ module sttmram_bist_core #(
 
   typedef enum logic [1:0] {IDLE, ISSUE, WAIT_OP} state_t;
   state_t state;
-  logic [3:0] elem, op_idx, elem_ops;
+  logic [ELEM_WIDTH-1:0] elem;
+  logic [3:0] op_idx, elem_ops;
   logic elem_down, op_is_read;
   logic [DATA_WIDTH-1:0] op_pattern;
   logic [7:0] wait_count;
@@ -213,9 +252,22 @@ endmodule
 function guide(c,a){return `STT-MRAM BIST 整合說明
 =======================
 
-選用演算法：${a.name}
+選用方法：${a.methods.map(x=>x.name).join("、")}
+數位 RTL sequence：${a.name}
 名目測試操作：${a.count} × DEPTH = ${a.count*c.depth} 次 memory operations
-主要 fault：${a.faults}
+故障模型聯集：${a.faults.join(" · ") || "無"}
+模型種類 coverage：${a.faults.length}/9 = ${(a.faults.length/9*100).toFixed(1)}%
+
+Coverage 定義
+-------------
+這是 survey 中 9 類 cell-level fault model 的種類聯集，不是 fault-injection instance coverage。
+重複 fault 只計一次。若要得到實際 defect/fault-instance coverage，仍須建立 fault list、逐一注入並比較 golden 與 faulty response。
+
+特殊硬體需求
+------------
+${a.methods.some(x=>x.kind==="special")?"已選 retention 方法：需要 weak-current / burn-in test mode、等待時間與統計控制；一般 memory pins 不足以完整實作。":"未選 retention 特殊測試。"}
+${a.methods.some(x=>x.kind==="analog")?"已選 TRDF DfT：需要 sense-current tracking / bit-flip detector，不能只靠數位 BIST FSM。":"未選 TRDF 類比 DfT。"}
+TWF 為隨機 transient write fault；survey 未提供有限次 March test 的保證偵測方法。
 
 Memory geometry（必須依 datasheet）
 ---------------------------------
@@ -250,13 +302,32 @@ ${c.paperLiteral?"警告：目前使用論文原文 WOM sequence；其後半段�
 function render(){
   const c=readConfig(),a=algorithm(c),errors=validate(c);
   $("addrWidth").disabled=c.autoAddr;
-  $("paperLiteral").disabled=c.algorithm!=="wom26";
-  $("algoNote").className="note"+(c.paperLiteral&&c.algorithm==="wom26"?" warn":"");
-  $("algoNote").textContent=c.algorithm==="wom26"?(c.paperLiteral?"警告：論文後半段的起始 expected pattern 與前一 element 結束狀態不一致。":"預設採狀態一致的 26N sequence，並保留 00/11/01/10 data backgrounds。"):(c.algorithm==="dirf14"?"以連續 read sensitise dynamic incorrect-read fault。":"基礎 10N functional test，適合先驗證整合介面。");
+  $("paperLiteral").disabled=!c.algoWom26;
+  $("algoNote").className="note"+(c.paperLiteral&&c.algoWom26?" warn":"");
+  const specialCount=a.methods.filter(x=>x.kind!=="digital").length;
+  $("algoNote").textContent=c.paperLiteral&&c.algoWom26?"警告：論文後半段的起始 expected pattern 與前一 element 結束狀態不一致。":`${a.methods.length} 個方法已選；數位 March 複雜度 ${a.count}N${specialCount?`，另有 ${specialCount} 個方法需要特殊 DfT／burn-in。`:"。"}`;
   const v=$("validation");v.textContent=errors.length?errors[0]:"參數有效";v.className="validation "+(errors.length?"error":"ok");
-  $("summary").innerHTML=`<div class="metric"><span>Algorithm</span><strong>${a.name}</strong></div><div class="metric"><span>Operations</span><strong>${(a.count*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Address × Data</span><strong>${c.addrWidth} × ${c.dataWidth}</strong></div><div class="metric"><span>Coverage target</span><strong>${a.faults.split(" · ").length} classes</strong></div>`;
+  $("summary").innerHTML=`<div class="metric"><span>Selected methods</span><strong>${a.methods.length}</strong></div><div class="metric"><span>Digital operations</span><strong>${(a.count*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Address × Data</span><strong>${c.addrWidth} × ${c.dataWidth}</strong></div><div class="metric"><span>Fault union</span><strong>${a.faults.length} / 9</strong></div>`;
+  renderCoverage(a);
   if(!errors.length){files={core:{name:"sttmram_bist_core.sv",text:genCore(c,a)},link:{name:"sttmram_bist_memory_link.sv",text:genLink(c)},tb:{name:"tb_sttmram_bist.sv",text:genTb(c)},guide:{name:"README.txt",text:guide(c,a)}}}
   showFile(activeFile); localStorage.setItem("sttmram-bist-config",JSON.stringify(c));
+}
+
+function renderCoverage(a){
+  const covered=new Set(a.faults), deterministic=new Set(a.deterministic);
+  const percent=covered.size/faultUniverse.length*100;
+  $("coverageRing").style.setProperty("--coverage",`${percent*3.6}deg`);
+  $("coveragePercent").textContent=`${percent.toFixed(1)}%`;
+  $("coverageStats").innerHTML=`
+    <div><span>Covered models</span><strong>${covered.size} / ${faultUniverse.length}</strong></div>
+    <div><span>Deterministic digital</span><strong>${deterministic.size} / ${faultUniverse.length}</strong></div>
+    <div><span>Uncovered</span><strong>${faultUniverse.length-covered.size}</strong></div>
+    <div><span>Complexity</span><strong>${a.count}N + special</strong></div>`;
+  $("faultMatrix").innerHTML=faultUniverse.map(f=>{
+    const hit=covered.has(f.id), det=deterministic.has(f.id);
+    const sources=a.methods.filter(m=>m.faults.includes(f.id)).map(m=>m.short).join("、");
+    return `<article class="fault-card ${hit?"covered":"miss"}"><div><strong>${f.id}</strong><span>${f.type}</span></div><p>${f.name}</p><small>${hit?(det?`✓ ${sources}`:`△ ${sources}（特殊／統計）`):"— 尚未涵蓋"}</small></article>`;
+  }).join("");
 }
 function showFile(key){activeFile=key;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.file===key));const f=files[key];if(!f)return;$("codeOutput").textContent=f.text;$("fileLabel").textContent=key==="guide"?"Integration notes":(key==="tb"?"SystemVerilog · Simulation":"SystemVerilog · Synthesizable")}
 function download(name,text){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
