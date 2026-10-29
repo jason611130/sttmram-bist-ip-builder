@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 SystemVerilog BIST IP。" />
+  <title>STT-MRAM BIST IP Builder</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
+    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.0</span></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">MEMORY TEST WORKBENCH</p>
+        <h1>把 March 演算法<br><em>接成可綜合的 BIST IP</em></h1>
+        <p class="lede">BIST 與 Synopsys memory 保持為兩個獨立區塊。控制訊號由 BIST 輸出，讀取資料由 memory 回傳。</p>
+      </div>
+      <div class="signal-flow" aria-label="BIST 與 Memory 訊號方向圖">
+        <div class="block bist-block"><span>CONTROL</span><strong>BIST IP</strong><small>FSM · comparator · logger</small></div>
+        <div class="bus">
+          <div class="arrow right"><code>ce · we · addr · wdata · wmask</code></div>
+          <div class="arrow left"><code>rdata · ready</code></div>
+        </div>
+        <div class="block mem-block"><span>MACRO</span><strong>STT-MRAM</strong><small>Synopsys memory block</small></div>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <aside class="config-panel">
+        <div class="panel-heading"><div><p class="step">01 / CONFIGURE</p><h2>IP 參數</h2></div><button id="resetBtn" class="text-btn">重設</button></div>
+
+        <fieldset>
+          <legend>Memory geometry</legend>
+          <label>Memory depth<input id="depth" type="number" min="2" value="256" /></label>
+          <div class="grid2">
+            <label>Data width<input id="dataWidth" type="number" min="2" value="32" /></label>
+            <label>Address width<input id="addrWidth" type="number" min="1" value="8" /></label>
+          </div>
+          <label class="check"><input id="autoAddr" type="checkbox" checked /><span>依 depth 自動計算 address width</span></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>March algorithm</legend>
+          <label>Algorithm<select id="algorithm"><option value="wom26">WOM March 26N（建議）</option><option value="dirf14">dIRF March 14N</option><option value="marchc">March C− 10N</option></select></label>
+          <label class="check"><input id="paperLiteral" type="checkbox" /><span>WOM 使用論文原文 sequence（會顯示一致性警告）</span></label>
+          <div id="algoNote" class="note"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Timing & handshake</legend>
+          <div class="grid2">
+            <label>Read latency<input id="readLatency" type="number" min="1" max="32" value="1" /></label>
+            <label>Write latency<input id="writeLatency" type="number" min="1" max="32" value="1" /></label>
+          </div>
+          <label class="check"><input id="useReady" type="checkbox" /><span>等待 memory ready 訊號</span></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Signal polarity</legend>
+          <div class="checks-row">
+            <label class="check"><input id="ceLow" type="checkbox" checked /><span>CEN active-low</span></label>
+            <label class="check"><input id="weLow" type="checkbox" checked /><span>WEN active-low</span></label>
+            <label class="check"><input id="maskLow" type="checkbox" checked /><span>BWEN active-low</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Synopsys macro mapping</legend>
+          <label>Macro module<input id="macroModule" value="STTMRAM_MACRO" /></label>
+          <div class="pin-grid">
+            <label>Clock<input id="pinClk" value="CLK" /></label><label>Enable<input id="pinCe" value="CEN" /></label>
+            <label>Write enable<input id="pinWe" value="WEN" /></label><label>Address<input id="pinAddr" value="A" /></label>
+            <label>Write data<input id="pinDin" value="D" /></label><label>Read data<input id="pinDout" value="Q" /></label>
+            <label>Write mask<input id="pinMask" value="BWEN" /></label>
+          </div>
+        </fieldset>
+
+        <button id="generateBtn" class="primary">產生 BIST IP <span>→</span></button>
+      </aside>
+
+      <section class="output-panel">
+        <div class="panel-heading"><div><p class="step">02 / REVIEW & EXPORT</p><h2>產生結果</h2></div><div id="validation" class="validation ok">參數有效</div></div>
+        <div class="summary" id="summary"></div>
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-file="core">bist_core.sv</button>
+          <button class="tab" data-file="link">bist_memory_link.sv</button>
+          <button class="tab" data-file="tb">tb_sttmram_bist.sv</button>
+          <button class="tab" data-file="guide">整合說明</button>
+        </div>
+        <div class="code-toolbar"><span id="fileLabel">SystemVerilog · Synthesizable</span><div><button id="copyBtn">複製</button><button id="downloadBtn">下載此檔</button><button id="downloadAllBtn" class="accent">全部下載</button></div></div>
+        <pre><code id="codeOutput"></code></pre>
+      </section>
+    </section>
+  </main>
+  <footer><span>STT-MRAM BIST IP Builder</span><span>WOM 26N · dIRF 14N · March C−</span></footer>
+  <script src="app.js"></script>
+</body>
+</html>
