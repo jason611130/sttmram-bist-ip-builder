@@ -11,7 +11,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.0</span></div>
+    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.1</span></div>
   </header>
 
   <main>
@@ -46,9 +46,17 @@
         </fieldset>
 
         <fieldset>
-          <legend>March algorithm</legend>
-          <label>Algorithm<select id="algorithm"><option value="wom26">WOM March 26N（建議）</option><option value="dirf14">dIRF March 14N</option><option value="marchc">March C− 10N</option></select></label>
-          <label class="check"><input id="paperLiteral" type="checkbox" /><span>WOM 使用論文原文 sequence（會顯示一致性警告）</span></label>
+          <legend>Test algorithms（可複選）</legend>
+          <div class="algorithm-picker">
+            <label class="algo-card recommended"><input id="algoWom26" type="checkbox" checked /><span class="algo-copy"><strong>WOM March 26N</strong><small>SAF · TF · RDF · IRF · CFwd</small></span><span class="algo-kind digital">Digital</span></label>
+            <label class="algo-card"><input id="algoDirf14" type="checkbox" /><span class="algo-copy"><strong>dIRF March 14N</strong><small>dIRF（連續讀取觸發）</small></span><span class="algo-kind digital">Digital</span></label>
+            <label class="algo-card"><input id="algoMarchC" type="checkbox" /><span class="algo-copy"><strong>March C− 10N</strong><small>SAF · TF 基礎檢查</small></span><span class="algo-kind digital">Digital</span></label>
+            <label class="algo-card"><input id="algoRetentionWeak" type="checkbox" /><span class="algo-copy"><strong>Weak-current retention</strong><small>RTF 統計／retention characterization</small></span><span class="algo-kind special">Special DfT</span></label>
+            <label class="algo-card"><input id="algoBurninBinary" type="checkbox" /><span class="algo-copy"><strong>Burn-in binary search</strong><small>RTF，加速後二分搜尋</small></span><span class="algo-kind special">Burn-in</span></label>
+            <label class="algo-card"><input id="algoBurninLinear" type="checkbox" /><span class="algo-copy"><strong>Burn-in linear search</strong><small>RTF，加速後線性搜尋</small></span><span class="algo-kind special">Burn-in</span></label>
+            <label class="algo-card"><input id="algoTrdfDft" type="checkbox" /><span class="algo-copy"><strong>TRDF current-tracking DfT</strong><small>TRDF，需 sense-current monitor</small></span><span class="algo-kind analog">Analog DfT</span></label>
+          </div>
+          <label class="check compact"><input id="paperLiteral" type="checkbox" /><span>WOM 使用論文原文 sequence（會顯示一致性警告）</span></label>
           <div id="algoNote" class="note"></div>
         </fieldset>
 
@@ -87,6 +95,12 @@
       <section class="output-panel">
         <div class="panel-heading"><div><p class="step">02 / REVIEW & EXPORT</p><h2>產生結果</h2></div><div id="validation" class="validation ok">參數有效</div></div>
         <div class="summary" id="summary"></div>
+        <section class="coverage-panel" aria-labelledby="coverageTitle">
+          <div class="coverage-head"><div><p class="step">FAULT MODEL UNION</p><h3 id="coverageTitle">Fault coverage</h3></div><div id="coverageRing" class="coverage-ring"><strong id="coveragePercent">0%</strong><small>類別覆蓋</small></div></div>
+          <div id="coverageStats" class="coverage-stats"></div>
+          <div id="faultMatrix" class="fault-matrix"></div>
+          <p class="coverage-note">此處計算的是 survey 故障模型「種類聯集」，不是 fault-injection instance coverage。相同 fault 被多個演算法涵蓋時只計一次。</p>
+        </section>
         <div class="tabs" role="tablist">
           <button class="tab active" data-file="core">bist_core.sv</button>
           <button class="tab" data-file="link">bist_memory_link.sv</button>
@@ -98,7 +112,7 @@
       </section>
     </section>
   </main>
-  <footer><span>STT-MRAM BIST IP Builder</span><span>WOM 26N · dIRF 14N · March C−</span></footer>
+  <footer><span>STT-MRAM BIST IP Builder</span><span>Multi-algorithm · fault-union coverage · RTL export</span></footer>
   <script src="app.js"></script>
 </body>
 </html>
