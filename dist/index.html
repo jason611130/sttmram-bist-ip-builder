@@ -32,6 +32,12 @@
     </section>
 
     <section class="workspace">
+      <section class="sequence-panel sequence-first" aria-labelledby="sequenceTitle">
+        <div class="sequence-head"><div><p class="step">EXECUTION TRACE</p><h3 id="sequenceTitle">Detection sequence</h3><p>這就是產生進 RTL 的實際順序；由左到右執行，每個 element 會走完整個 address range。</p></div><div id="sequenceTotal" class="sequence-total"></div></div>
+        <div id="sequenceFormula" class="sequence-formula"></div>
+        <div id="sequenceTimeline" class="sequence-timeline"></div>
+        <div class="detection-explain"><h4>每種 fault 怎麼被抓到</h4><div id="detectionMap" class="detection-map"></div></div>
+      </section>
       <aside class="config-panel">
         <div class="panel-heading"><div><p class="step">01 / CONFIGURE</p><h2>IP 參數</h2></div><button id="resetBtn" class="text-btn">重設</button></div>
 
@@ -95,12 +101,6 @@
 
       <section class="output-panel">
         <div class="panel-heading"><div><p class="step">02 / REVIEW & EXPORT</p><h2>產生結果</h2></div><div id="validation" class="validation ok">參數有效</div></div>
-        <section class="sequence-panel sequence-first" aria-labelledby="sequenceTitle">
-          <div class="sequence-head"><div><p class="step">EXECUTION TRACE</p><h3 id="sequenceTitle">Detection sequence</h3><p>這就是產生進 RTL 的實際順序；由左到右執行，每個 element 會走完整個 address range。</p></div><div id="sequenceTotal" class="sequence-total"></div></div>
-          <div id="sequenceFormula" class="sequence-formula"></div>
-          <div id="sequenceTimeline" class="sequence-timeline"></div>
-          <div class="detection-explain"><h4>每種 fault 怎麼被抓到</h4><div id="detectionMap" class="detection-map"></div></div>
-        </section>
         <div class="summary" id="summary"></div>
         <section class="coverage-panel" aria-labelledby="coverageTitle">
           <div class="coverage-head"><div><p class="step">FAULT MODEL UNION</p><h3 id="coverageTitle">Fault coverage</h3></div><div id="coverageRing" class="coverage-ring"><strong id="coveragePercent">0%</strong><small>類別覆蓋</small></div></div>
