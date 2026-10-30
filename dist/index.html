@@ -32,6 +32,23 @@
     </section>
 
     <section class="workspace">
+      <fieldset class="algorithms-panel">
+        <legend>Test algorithms（可複選）</legend>
+        <div class="algorithm-picker">
+          <label class="algo-card recommended"><input id="algoWom26" type="checkbox" checked /><span class="algo-copy"><strong>WOM March 26N</strong><small>SAF · TF · RDF · IRF · CFwd</small></span><span class="algo-kind digital">Digital</span></label>
+          <label class="algo-card"><input id="algoDirf14" type="checkbox" /><span class="algo-copy"><strong>dIRF March 14N</strong><small>dIRF（連續讀取觸發）</small></span><span class="algo-kind digital">Digital</span></label>
+          <label class="algo-card"><input id="algoMarchC" type="checkbox" /><span class="algo-copy"><strong>March C− 10N</strong><small>SAF · TF 基礎檢查</small></span><span class="algo-kind digital">Digital</span></label>
+          <label class="algo-card"><input id="algoRetentionWeak" type="checkbox" /><span class="algo-copy"><strong>Weak-current retention</strong><small>RTF 統計／retention characterization</small></span><span class="algo-kind special">Special DfT</span></label>
+          <label class="algo-card"><input id="algoBurninBinary" type="checkbox" /><span class="algo-copy"><strong>Burn-in binary search</strong><small>RTF，加速後二分搜尋</small></span><span class="algo-kind special">Burn-in</span></label>
+          <label class="algo-card"><input id="algoBurninLinear" type="checkbox" /><span class="algo-copy"><strong>Burn-in linear search</strong><small>RTF，加速後線性搜尋</small></span><span class="algo-kind special">Burn-in</span></label>
+          <label class="algo-card"><input id="algoTrdfDft" type="checkbox" /><span class="algo-copy"><strong>TRDF current-tracking DfT</strong><small>TRDF，需 sense-current monitor</small></span><span class="algo-kind analog">Analog DfT</span></label>
+        </div>
+        <div class="algorithm-options">
+          <label class="check compact"><input id="paperLiteral" type="checkbox" /><span>WOM 使用論文原文 sequence（會顯示一致性警告）</span></label>
+          <label class="check optimizer-toggle"><input id="optimizeSequence" type="checkbox" checked /><span><strong>Coverage-aware 最佳化</strong><small>移除被涵蓋的測試，並融合相容 March elements</small></span></label>
+        </div>
+        <div id="algoNote" class="note"></div>
+      </fieldset>
       <section class="sequence-panel sequence-first" aria-labelledby="sequenceTitle">
         <div class="sequence-head"><div><p class="step">EXECUTION TRACE</p><h3 id="sequenceTitle">Detection sequence</h3><p>這就是產生進 RTL 的實際順序；由左到右執行，每個 element 會走完整個 address range。</p></div><div id="sequenceTotal" class="sequence-total"></div></div>
         <div id="sequenceFormula" class="sequence-formula"></div>
@@ -49,22 +66,6 @@
             <label>Address width<input id="addrWidth" type="number" min="1" value="8" /></label>
           </div>
           <label class="check"><input id="autoAddr" type="checkbox" checked /><span>依 depth 自動計算 address width</span></label>
-        </fieldset>
-
-        <fieldset>
-          <legend>Test algorithms（可複選）</legend>
-          <div class="algorithm-picker">
-            <label class="algo-card recommended"><input id="algoWom26" type="checkbox" checked /><span class="algo-copy"><strong>WOM March 26N</strong><small>SAF · TF · RDF · IRF · CFwd</small></span><span class="algo-kind digital">Digital</span></label>
-            <label class="algo-card"><input id="algoDirf14" type="checkbox" /><span class="algo-copy"><strong>dIRF March 14N</strong><small>dIRF（連續讀取觸發）</small></span><span class="algo-kind digital">Digital</span></label>
-            <label class="algo-card"><input id="algoMarchC" type="checkbox" /><span class="algo-copy"><strong>March C− 10N</strong><small>SAF · TF 基礎檢查</small></span><span class="algo-kind digital">Digital</span></label>
-            <label class="algo-card"><input id="algoRetentionWeak" type="checkbox" /><span class="algo-copy"><strong>Weak-current retention</strong><small>RTF 統計／retention characterization</small></span><span class="algo-kind special">Special DfT</span></label>
-            <label class="algo-card"><input id="algoBurninBinary" type="checkbox" /><span class="algo-copy"><strong>Burn-in binary search</strong><small>RTF，加速後二分搜尋</small></span><span class="algo-kind special">Burn-in</span></label>
-            <label class="algo-card"><input id="algoBurninLinear" type="checkbox" /><span class="algo-copy"><strong>Burn-in linear search</strong><small>RTF，加速後線性搜尋</small></span><span class="algo-kind special">Burn-in</span></label>
-            <label class="algo-card"><input id="algoTrdfDft" type="checkbox" /><span class="algo-copy"><strong>TRDF current-tracking DfT</strong><small>TRDF，需 sense-current monitor</small></span><span class="algo-kind analog">Analog DfT</span></label>
-          </div>
-          <label class="check compact"><input id="paperLiteral" type="checkbox" /><span>WOM 使用論文原文 sequence（會顯示一致性警告）</span></label>
-          <label class="check optimizer-toggle"><input id="optimizeSequence" type="checkbox" checked /><span><strong>Coverage-aware 最佳化</strong><small>移除被涵蓋的測試，並融合相容 March elements</small></span></label>
-          <div id="algoNote" class="note"></div>
         </fieldset>
 
         <fieldset>

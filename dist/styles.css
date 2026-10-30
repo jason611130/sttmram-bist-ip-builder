@@ -9,3 +9,16 @@
 @media(max-width:1100px){.fault-matrix{grid-template-columns:1fr 1fr}.coverage-stats{grid-template-columns:1fr 1fr}.coverage-stats div:nth-child(2){border-right:0}}
 @media(max-width:900px){.sequence-timeline,.detection-map{grid-template-columns:1fr}}
 @media(max-width:620px){.algo-card{grid-template-columns:18px minmax(0,1fr)}.algo-kind{grid-column:2;justify-self:start}.fault-matrix{grid-template-columns:1fr}.coverage-stats{grid-template-columns:1fr 1fr}.coverage-ring{width:78px;height:78px;flex-basis:78px}.optimizer-panel{grid-template-columns:1fr}.optimizer-score{border-right:0;border-bottom:1px solid var(--line)}.sequence-head{flex-direction:column}.sequence-total{width:100%}.sequence-element{grid-template-columns:96px minmax(0,1fr)}}
+
+/* Full-width algorithm selection above the execution trace. */
+.workspace>.algorithms-panel{grid-column:1/-1;margin:0;padding:32px 4vw 28px;border-top:0;border-bottom:1px solid var(--line);background:#0d1216}
+.algorithms-panel legend{font-size:13px;color:var(--cyan);padding-right:14px}
+.algorithms-panel .algorithm-picker{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:4px}
+.algorithm-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
+.algorithm-options .compact,.algorithm-options .optimizer-toggle{margin:0;min-height:58px;border:1px solid var(--line);padding:12px;background:#10161a}
+.algorithm-options .optimizer-toggle{border-color:#315c56;background:#101c1b}
+
+/* Keep long March formulas readable without horizontal scrolling. */
+.sequence-formula{align-content:flex-start;flex-wrap:wrap;overflow-x:visible;white-space:normal;line-height:1.7;overflow-wrap:anywhere}
+
+@media(max-width:760px){.algorithms-panel .algorithm-picker,.algorithm-options{grid-template-columns:1fr}}
