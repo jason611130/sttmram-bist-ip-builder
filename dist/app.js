@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
-const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoRetentionWeak","algoBurninBinary","algoBurninLinear","algoTrdfDft","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady","ceLow","weLow","maskLow","macroModule","pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"];
-const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoRetentionWeak:false,algoBurninBinary:false,algoBurninLinear:false,algoTrdfDft:false,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false,ceLow:true,weLow:true,maskLow:true,macroModule:"STTMRAM_MACRO",pinClk:"CLK",pinCe:"CEN",pinWe:"WEN",pinAddr:"A",pinDin:"D",pinDout:"Q",pinMask:"BWEN"};
+const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","algoRetentionWeak","algoBurninBinary","algoBurninLinear","algoTrdfDft","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady","ceLow","weLow","maskLow","macroModule","pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"];
+const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,algoRetentionWeak:false,algoBurninBinary:false,algoBurninLinear:false,algoTrdfDft:false,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false,ceLow:true,weLow:true,maskLow:true,macroModule:"STTMRAM_MACRO",pinClk:"CLK",pinCe:"CEN",pinWe:"WEN",pinAddr:"A",pinDin:"D",pinDout:"Q",pinMask:"BWEN"};
 let files = {}, activeFile = "core";
 
 const faultUniverse = [
@@ -45,6 +45,9 @@ function selectedAlgorithms(c){
   if(c.algoMarchC) list.push({id:"marchc",name:"March C− 10N",short:"March C−",count:10,faults:["SAF","TF"],deterministic:true,kind:"digital",elements:[
     {d:0,o:[["w","0"]]},{d:0,o:[["r","0"],["w","1"]]},{d:0,o:[["r","1"],["w","0"]]},
     {d:1,o:[["r","0"],["w","1"]]},{d:1,o:[["r","1"],["w","0"]]},{d:0,o:[["r","0"]]}
+  ]});
+  if(c.algoMarchCM) list.push({id:"marchcm",name:"March CM 7N",short:"March CM",count:7,faults:["SAF","TF","IRF"],deterministic:true,kind:"digital",elements:[
+    {d:0,o:[["w","1"],["w","0"],["r","0"],["w","1"],["w","1"],["r","1"],["r","1"]]}
   ]});
   if(c.algoRetentionWeak) list.push({id:"retentionWeak",name:"Weak-current retention test",short:"Weak-current RTF",count:null,faults:["RTF"],deterministic:false,kind:"special",elements:[]});
   if(c.algoBurninBinary) list.push({id:"burninBinary",name:"Burn-in binary-search retention test",short:"Binary RTF",count:null,faults:["RTF"],deterministic:false,kind:"special",elements:[]});

@@ -26,3 +26,5 @@
 /* Compact intro: the builder does not need a marketing-style hero title. */
 .hero{padding-top:42px;padding-bottom:36px;align-items:center}
 .hero .lede{margin-top:10px}
+
+.paper-link{display:inline-flex;width:max-content;margin-top:7px;color:#82cfc4;font:9px/1.4 var(--mono);text-decoration:none;border-bottom:1px solid #35685f}.paper-link:hover{color:var(--cyan);border-color:var(--cyan)}.algo-card.new-method{position:relative;border-style:dashed}.algo-card.new-method:after{content:"NEW";position:absolute;top:0;right:0;padding:2px 5px;background:var(--cyan);color:#07110f;font:8px var(--mono)}
