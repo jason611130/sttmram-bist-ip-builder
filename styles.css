@@ -22,3 +22,7 @@
 .sequence-formula{align-content:flex-start;flex-wrap:wrap;overflow-x:visible;white-space:normal;line-height:1.7;overflow-wrap:anywhere}
 
 @media(max-width:760px){.algorithms-panel .algorithm-picker,.algorithm-options{grid-template-columns:1fr}}
+
+/* Compact intro: the builder does not need a marketing-style hero title. */
+.hero{padding-top:42px;padding-bottom:36px;align-items:center}
+.hero .lede{margin-top:10px}
