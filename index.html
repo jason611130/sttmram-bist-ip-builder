@@ -11,7 +11,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.2</span></div>
+    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.3</span></div>
   </header>
 
   <main>
@@ -102,6 +102,12 @@
           <div id="coverageStats" class="coverage-stats"></div>
           <div id="faultMatrix" class="fault-matrix"></div>
           <p class="coverage-note">此處計算的是 survey 故障模型「種類聯集」，不是 fault-injection instance coverage。相同 fault 被多個演算法涵蓋時只計一次。</p>
+        </section>
+        <section class="sequence-panel" aria-labelledby="sequenceTitle">
+          <div class="sequence-head"><div><p class="step">EXECUTION TRACE</p><h3 id="sequenceTitle">Detection sequence</h3><p>這就是產生進 RTL 的實際順序；由左到右執行，每個 element 會走完整個 address range。</p></div><div id="sequenceTotal" class="sequence-total"></div></div>
+          <div id="sequenceFormula" class="sequence-formula"></div>
+          <div id="sequenceTimeline" class="sequence-timeline"></div>
+          <div class="detection-explain"><h4>每種 fault 怎麼被抓到</h4><div id="detectionMap" class="detection-map"></div></div>
         </section>
         <div class="tabs" role="tablist">
           <button class="tab active" data-file="core">bist_core.sv</button>
