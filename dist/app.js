@@ -341,6 +341,7 @@ function render(){
   const v=$("validation");v.textContent=errors.length?errors[0]:"參數有效";v.className="validation "+(errors.length?"error":"ok");
   $("summary").innerHTML=`<div class="metric"><span>Selected methods</span><strong>${a.methods.length}</strong></div><div class="metric"><span>Optimized operations</span><strong>${(a.count*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Saved operations</span><strong>${(a.savingsN*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Fault union</span><strong>${a.faults.length} / 9</strong></div>`;
   renderCoverage(a);
+  renderSequence(c,a);
   if(!errors.length){files={core:{name:"sttmram_bist_core.sv",text:genCore(c,a)},link:{name:"sttmram_bist_memory_link.sv",text:genLink(c)},tb:{name:"tb_sttmram_bist.sv",text:genTb(c)},guide:{name:"README.txt",text:guide(c,a)}}}
   showFile(activeFile); localStorage.setItem("sttmram-bist-config",JSON.stringify(c));
 }
@@ -362,6 +363,60 @@ function renderCoverage(a){
     const hit=covered.has(f.id), det=deterministic.has(f.id);
     const sources=a.methods.filter(m=>m.faults.includes(f.id)).map(m=>m.short).join("、");
     return `<article class="fault-card ${hit?"covered":"miss"}"><div><strong>${f.id}</strong><span>${f.type}</span></div><p>${f.name}</p><small>${hit?(det?`✓ ${sources}`:`△ ${sources}（特殊／統計）`):"— 尚未涵蓋"}</small></article>`;
+  }).join("");
+}
+
+function compressedOps(ops){
+  const groups=[];
+  ops.forEach(op=>{
+    const key=op.join("");
+    const last=groups[groups.length-1];
+    if(last&&last.key===key)last.count++;
+    else groups.push({key,kind:op[0],pattern:op[1],count:1});
+  });
+  return groups;
+}
+
+function elementRefs(a,predicate){
+  return a.elements.map((e,i)=>predicate(e)?`M${i}`:null).filter(Boolean);
+}
+
+function faultExplanation(f,a){
+  const allReads=elementRefs(a,e=>e.o.some(op=>op[0]==="r"));
+  const transitions=elementRefs(a,e=>e.o.some(op=>op[0]==="w")&&e.o.some(op=>op[0]==="r"));
+  const checker=elementRefs(a,e=>e.o.some(op=>op[1]==="01"||op[1]==="10"));
+  const repeated=elementRefs(a,e=>compressedOps(e.o).some(g=>g.kind==="r"&&g.count>=4));
+  const descriptions={
+    SAF:["分別寫入全 0／全 1並讀回；stuck-at 0 或 1 會造成 comparator mismatch。",transitions.slice(0,4)],
+    TF:["強制 00→11 與 11→00；無法完成任一方向的 cell 會在緊接的 read 被抓到。",transitions.slice(0,5)],
+    RDF:["每次 read 都比較 expected pattern；若讀取破壞資料，當次或後續同背景 read 會報錯。",allReads.slice(0,6)],
+    IRF:["儲存狀態正確但感測值錯誤時，read comparator 立即產生 fail。",allReads.slice(0,6)],
+    CFwd:["01／10 checkerboard 讓同 word 的 aggressor 與 victim 交替，再讀回確認 victim 未被 write disturb。",checker],
+    dIRF:["寫入後對同一 address 連續讀 4 次，sensitise 需要多次 read 才出現的 dynamic IRF。",repeated],
+    RTF:["由 weak-current／burn-in retention 流程執行，需要等待、電流控制與統計；不屬於下方一般 March operations。",[]],
+    TRDF:["由 sense-current tracking DfT 在 read 期間監看突發 bit flip；不是單靠 expected-data comparator。",[]],
+    TWF:["目前 survey 沒有有限次 March sequence 可保證偵測，因此維持未涵蓋。",[]]
+  };
+  return descriptions[f.id];
+}
+
+function renderSequence(c,a){
+  $("sequenceTotal").innerHTML=`<span>實際執行</span><strong>${a.count}N</strong><small>${(a.count*c.depth).toLocaleString()} ops @ depth ${c.depth}</small>`;
+  const formula=a.elements.map((e,i)=>{
+    const dir=e.d?"↓":"↑";
+    const ops=compressedOps(e.o).map(g=>`${g.kind}${g.pattern}${g.count>1?`×${g.count}`:""}`).join(", ");
+    return `<span><b>M${i}</b> ${dir} (${ops})</span>`;
+  });
+  $("sequenceFormula").innerHTML=formula.join('<i>;</i>');
+  $("sequenceTimeline").innerHTML=a.elements.map((e,i)=>{
+    const dir=e.d?"↓":"↑",range=e.d?"DEPTH−1 → 0":"0 → DEPTH−1";
+    const ops=compressedOps(e.o).map(g=>`<span class="op ${g.kind==="r"?"read":"write"}"><b>${g.kind.toUpperCase()}</b>${g.pattern}${g.count>1?`<sup>×${g.count}</sup>`:""}</span>`).join('<i>→</i>');
+    return `<article class="sequence-element"><header><span>M${i}</span><strong>${dir}</strong><small>${range}</small></header><div class="op-flow">${ops}</div></article>`;
+  }).join("");
+  const covered=new Set(a.faults);
+  $("detectionMap").innerHTML=faultUniverse.map(f=>{
+    const [description,refs]=faultExplanation(f,a),hit=covered.has(f.id);
+    return `<article class="detect-row ${hit?"hit":"miss"}"><div><strong>${f.id}</strong><span>${hit?"DETECTED":"NOT COVERED"}</span></div><p>${description}</p><small>${refs.length?`Evidence: ${refs.join(" · ")}`:(hit?"由特殊 DfT／統計流程涵蓋":"沒有對應 sequence")}</small></article>`;
   }).join("");
 }
 function showFile(key){activeFile=key;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.file===key));const f=files[key];if(!f)return;$("codeOutput").textContent=f.text;$("fileLabel").textContent=key==="guide"?"Integration notes":(key==="tb"?"SystemVerilog · Simulation":"SystemVerilog · Synthesizable")}
