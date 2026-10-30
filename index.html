@@ -11,7 +11,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.1</span></div>
+    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.2</span></div>
   </header>
 
   <main>
@@ -57,6 +57,7 @@
             <label class="algo-card"><input id="algoTrdfDft" type="checkbox" /><span class="algo-copy"><strong>TRDF current-tracking DfT</strong><small>TRDF，需 sense-current monitor</small></span><span class="algo-kind analog">Analog DfT</span></label>
           </div>
           <label class="check compact"><input id="paperLiteral" type="checkbox" /><span>WOM 使用論文原文 sequence（會顯示一致性警告）</span></label>
+          <label class="check optimizer-toggle"><input id="optimizeSequence" type="checkbox" checked /><span><strong>Coverage-aware 最佳化</strong><small>移除被涵蓋的測試，並融合相容 March elements</small></span></label>
           <div id="algoNote" class="note"></div>
         </fieldset>
 
@@ -97,6 +98,7 @@
         <div class="summary" id="summary"></div>
         <section class="coverage-panel" aria-labelledby="coverageTitle">
           <div class="coverage-head"><div><p class="step">FAULT MODEL UNION</p><h3 id="coverageTitle">Fault coverage</h3></div><div id="coverageRing" class="coverage-ring"><strong id="coveragePercent">0%</strong><small>類別覆蓋</small></div></div>
+          <div id="optimizerPanel" class="optimizer-panel"></div>
           <div id="coverageStats" class="coverage-stats"></div>
           <div id="faultMatrix" class="fault-matrix"></div>
           <p class="coverage-note">此處計算的是 survey 故障模型「種類聯集」，不是 fault-injection instance coverage。相同 fault 被多個演算法涵蓋時只計一次。</p>

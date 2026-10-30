@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
-const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoRetentionWeak","algoBurninBinary","algoBurninLinear","algoTrdfDft","paperLiteral","readLatency","writeLatency","useReady","ceLow","weLow","maskLow","macroModule","pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"];
-const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoRetentionWeak:false,algoBurninBinary:false,algoBurninLinear:false,algoTrdfDft:false,paperLiteral:false,readLatency:1,writeLatency:1,useReady:false,ceLow:true,weLow:true,maskLow:true,macroModule:"STTMRAM_MACRO",pinClk:"CLK",pinCe:"CEN",pinWe:"WEN",pinAddr:"A",pinDin:"D",pinDout:"Q",pinMask:"BWEN"};
+const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoRetentionWeak","algoBurninBinary","algoBurninLinear","algoTrdfDft","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady","ceLow","weLow","maskLow","macroModule","pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"];
+const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoRetentionWeak:false,algoBurninBinary:false,algoBurninLinear:false,algoTrdfDft:false,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false,ceLow:true,weLow:true,maskLow:true,macroModule:"STTMRAM_MACRO",pinClk:"CLK",pinCe:"CEN",pinWe:"WEN",pinAddr:"A",pinDin:"D",pinDout:"Q",pinMask:"BWEN"};
 let files = {}, activeFile = "core";
 
 const faultUniverse = [
@@ -53,15 +53,39 @@ function selectedAlgorithms(c){
   return list;
 }
 
+function fuseWomDirf(wom){
+  const elements=wom.elements.map(e=>({d:e.d,o:e.o.map(op=>[...op])}));
+  // WOM already performs one read after each transition. Three repeated reads
+  // complete the four-read dIRF sensitization at the same address.
+  elements[1].o.push(["r","11"],["r","11"],["r","11"]);
+  elements[2].o.push(["r","00"],["r","00"],["r","00"]);
+  return {...wom,name:"WOM 26N + fused dIRF 6N",short:"WOM+dIRF fused",count:32,elements};
+}
+
 function algorithm(c){
   const methods=selectedAlgorithms(c), digital=methods.filter(x=>x.kind==="digital");
   const faultSet=new Set(methods.flatMap(x=>x.faults));
   const deterministicSet=new Set(methods.filter(x=>x.deterministic).flatMap(x=>x.faults));
+  const baseCount=digital.reduce((sum,x)=>sum+x.count,0);
+  let executed=[...digital], rules=[];
+  if(c.optimizeSequence){
+    const wom=digital.find(x=>x.id==="wom26"), dirf=digital.find(x=>x.id==="dirf14"), marchc=digital.find(x=>x.id==="marchc");
+    if(wom && dirf){
+      executed=executed.filter(x=>x.id!=="wom26" && x.id!=="dirf14");
+      executed.unshift(fuseWomDirf(wom));
+      rules.push("WOM 的 write→read 已建立 dIRF 狀態；每個方向只補 3 次連續讀取（+6N），取代完整 14N。");
+    }
+    if(wom && marchc){
+      executed=executed.filter(x=>x.id!=="marchc");
+      rules.push("在目前 9 類 STT cell fault 模型內，March C− 的 SAF/TF 已被 WOM 涵蓋，因此省略 10N。");
+    }
+  }
+  const count=executed.reduce((sum,x)=>sum+x.count,0);
   return {
-    name:digital.length?digital.map(x=>x.name).join(" + "):"尚未選擇數位 March test",
-    count:digital.reduce((sum,x)=>sum+x.count,0),
+    name:executed.length?executed.map(x=>x.name).join(" + "):"尚未選擇數位 March test",
+    count,baseCount,savingsN:baseCount-count,rules,optimized:c.optimizeSequence&&rules.length>0,
     faults:[...faultSet],deterministic:[...deterministicSet],methods,
-    elements:digital.flatMap(x=>x.elements)
+    elements:executed.flatMap(x=>x.elements)
   };
 }
 
@@ -254,9 +278,17 @@ function guide(c,a){return `STT-MRAM BIST 整合說明
 
 選用方法：${a.methods.map(x=>x.name).join("、")}
 數位 RTL sequence：${a.name}
-名目測試操作：${a.count} × DEPTH = ${a.count*c.depth} 次 memory operations
+原始測試複雜度：${a.baseCount}N
+最佳化後複雜度：${a.count}N
+節省：${a.savingsN}N（${a.baseCount?((a.savingsN/a.baseCount)*100).toFixed(1):"0.0"}%）
+實際名目操作：${a.count} × DEPTH = ${a.count*c.depth} 次 memory operations
 故障模型聯集：${a.faults.join(" · ") || "無"}
 模型種類 coverage：${a.faults.length}/9 = ${(a.faults.length/9*100).toFixed(1)}%
+
+Sequence 最佳化
+----------------
+${a.optimized?a.rules.map((r,i)=>`${i+1}. ${r}`).join("\n"):"未套用合併規則；RTL 使用原始演算法串接。"}
+最佳化是依目前 fault-model mapping 所做的 coverage-equivalent rewrite。正式 sign-off 前仍須以 fault injection 比較原始與最佳化 sequence。
 
 Coverage 定義
 -------------
@@ -305,9 +337,9 @@ function render(){
   $("paperLiteral").disabled=!c.algoWom26;
   $("algoNote").className="note"+(c.paperLiteral&&c.algoWom26?" warn":"");
   const specialCount=a.methods.filter(x=>x.kind!=="digital").length;
-  $("algoNote").textContent=c.paperLiteral&&c.algoWom26?"警告：論文後半段的起始 expected pattern 與前一 element 結束狀態不一致。":`${a.methods.length} 個方法已選；數位 March 複雜度 ${a.count}N${specialCount?`，另有 ${specialCount} 個方法需要特殊 DfT／burn-in。`:"。"}`;
+  $("algoNote").textContent=c.paperLiteral&&c.algoWom26?"警告：論文後半段的起始 expected pattern 與前一 element 結束狀態不一致。":`${a.methods.length} 個方法已選；${a.optimized?`已從 ${a.baseCount}N 壓縮為 ${a.count}N。`:`數位 March 複雜度 ${a.count}N。`}${specialCount?` 另有 ${specialCount} 個方法需要特殊 DfT／burn-in。`:""}`;
   const v=$("validation");v.textContent=errors.length?errors[0]:"參數有效";v.className="validation "+(errors.length?"error":"ok");
-  $("summary").innerHTML=`<div class="metric"><span>Selected methods</span><strong>${a.methods.length}</strong></div><div class="metric"><span>Digital operations</span><strong>${(a.count*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Address × Data</span><strong>${c.addrWidth} × ${c.dataWidth}</strong></div><div class="metric"><span>Fault union</span><strong>${a.faults.length} / 9</strong></div>`;
+  $("summary").innerHTML=`<div class="metric"><span>Selected methods</span><strong>${a.methods.length}</strong></div><div class="metric"><span>Optimized operations</span><strong>${(a.count*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Saved operations</span><strong>${(a.savingsN*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Fault union</span><strong>${a.faults.length} / 9</strong></div>`;
   renderCoverage(a);
   if(!errors.length){files={core:{name:"sttmram_bist_core.sv",text:genCore(c,a)},link:{name:"sttmram_bist_memory_link.sv",text:genLink(c)},tb:{name:"tb_sttmram_bist.sv",text:genTb(c)},guide:{name:"README.txt",text:guide(c,a)}}}
   showFile(activeFile); localStorage.setItem("sttmram-bist-config",JSON.stringify(c));
@@ -318,6 +350,9 @@ function renderCoverage(a){
   const percent=covered.size/faultUniverse.length*100;
   $("coverageRing").style.setProperty("--coverage",`${percent*3.6}deg`);
   $("coveragePercent").textContent=`${percent.toFixed(1)}%`;
+  const savedPct=a.baseCount?(a.savingsN/a.baseCount*100):0;
+  $("optimizerPanel").className="optimizer-panel "+(a.optimized?"active":"idle");
+  $("optimizerPanel").innerHTML=`<div class="optimizer-score"><span>${a.optimized?"OPTIMIZED":"ORIGINAL"}</span><strong>${a.baseCount}N <i>→</i> ${a.count}N</strong><small>${a.savingsN}N saved · ${savedPct.toFixed(1)}%</small></div><div class="optimizer-rules">${a.rules.length?a.rules.map(r=>`<p>✓ ${r}</p>`).join(""):"<p>目前組合沒有可套用的共用 sequence 規則。</p>"}<small>正式定案前仍需以 fault injection 驗證 coverage 等價性。</small></div>`;
   $("coverageStats").innerHTML=`
     <div><span>Covered models</span><strong>${covered.size} / ${faultUniverse.length}</strong></div>
     <div><span>Deterministic digital</span><strong>${deterministic.size} / ${faultUniverse.length}</strong></div>
