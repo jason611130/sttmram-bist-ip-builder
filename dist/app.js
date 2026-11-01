@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
-const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","algoRetentionWeak","algoBurninBinary","algoBurninLinear","algoTrdfDft","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady","ceLow","weLow","maskLow","macroModule","pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"];
-const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,algoRetentionWeak:false,algoBurninBinary:false,algoBurninLinear:false,algoTrdfDft:false,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false,ceLow:true,weLow:true,maskLow:true,macroModule:"STTMRAM_MACRO",pinClk:"CLK",pinCe:"CEN",pinWe:"WEN",pinAddr:"A",pinDin:"D",pinDout:"Q",pinMask:"BWEN"};
+const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady","ceLow","weLow","maskLow","macroModule","pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"];
+const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false,ceLow:true,weLow:true,maskLow:true,macroModule:"STTMRAM_MACRO",pinClk:"CLK",pinCe:"CEN",pinWe:"WEN",pinAddr:"A",pinDin:"D",pinDout:"Q",pinMask:"BWEN"};
 let files = {}, activeFile = "core";
 
 const faultUniverse = [
@@ -49,10 +49,6 @@ function selectedAlgorithms(c){
   if(c.algoMarchCM) list.push({id:"marchcm",name:"March CM 7N",short:"March CM",count:7,faults:["SAF","TF","IRF"],deterministic:true,kind:"digital",elements:[
     {d:0,o:[["w","1"],["w","0"],["r","0"],["w","1"],["w","1"],["r","1"],["r","1"]]}
   ]});
-  if(c.algoRetentionWeak) list.push({id:"retentionWeak",name:"Weak-current retention test",short:"Weak-current RTF",count:null,faults:["RTF"],deterministic:false,kind:"special",elements:[]});
-  if(c.algoBurninBinary) list.push({id:"burninBinary",name:"Burn-in binary-search retention test",short:"Binary RTF",count:null,faults:["RTF"],deterministic:false,kind:"special",elements:[]});
-  if(c.algoBurninLinear) list.push({id:"burninLinear",name:"Burn-in linear-search retention test",short:"Linear RTF",count:null,faults:["RTF"],deterministic:false,kind:"special",elements:[]});
-  if(c.algoTrdfDft) list.push({id:"trdfDft",name:"TRDF current-tracking DfT",short:"TRDF DfT",count:null,faults:["TRDF"],deterministic:false,kind:"analog",elements:[]});
   return list;
 }
 
@@ -66,7 +62,7 @@ function fuseWomDirf(wom){
 }
 
 function algorithm(c){
-  const methods=selectedAlgorithms(c), digital=methods.filter(x=>x.kind==="digital");
+  const methods=selectedAlgorithms(c), digital=methods;
   const faultSet=new Set(methods.flatMap(x=>x.faults));
   const deterministicSet=new Set(methods.filter(x=>x.deterministic).flatMap(x=>x.faults));
   const baseCount=digital.reduce((sum,x)=>sum+x.count,0);
@@ -298,11 +294,10 @@ Coverage 定義
 這是 survey 中 9 類 cell-level fault model 的種類聯集，不是 fault-injection instance coverage。
 重複 fault 只計一次。若要得到實際 defect/fault-instance coverage，仍須建立 fault list、逐一注入並比較 golden 與 faulty response。
 
-特殊硬體需求
-------------
-${a.methods.some(x=>x.kind==="special")?"已選 retention 方法：需要 weak-current / burn-in test mode、等待時間與統計控制；一般 memory pins 不足以完整實作。":"未選 retention 特殊測試。"}
-${a.methods.some(x=>x.kind==="analog")?"已選 TRDF DfT：需要 sense-current tracking / bit-flip detector，不能只靠數位 BIST FSM。":"未選 TRDF 類比 DfT。"}
-TWF 為隨機 transient write fault；survey 未提供有限次 March test 的保證偵測方法。
+純數位方法的限制
+----------------
+本工具只產生可由 memory 數位介面直接執行的 March BIST。
+RTF、TRDF 與 TWF 目前維持未涵蓋；不把 weak-current、burn-in 或 sense-current 類比 DfT 算入 coverage。
 
 Memory geometry（必須依 datasheet）
 ---------------------------------
@@ -339,8 +334,7 @@ function render(){
   $("addrWidth").disabled=c.autoAddr;
   $("paperLiteral").disabled=!c.algoWom26;
   $("algoNote").className="note"+(c.paperLiteral&&c.algoWom26?" warn":"");
-  const specialCount=a.methods.filter(x=>x.kind!=="digital").length;
-  $("algoNote").textContent=c.paperLiteral&&c.algoWom26?"警告：論文後半段的起始 expected pattern 與前一 element 結束狀態不一致。":`${a.methods.length} 個方法已選；${a.optimized?`已從 ${a.baseCount}N 壓縮為 ${a.count}N。`:`數位 March 複雜度 ${a.count}N。`}${specialCount?` 另有 ${specialCount} 個方法需要特殊 DfT／burn-in。`:""}`;
+  $("algoNote").textContent=c.paperLiteral&&c.algoWom26?"警告：論文後半段的起始 expected pattern 與前一 element 結束狀態不一致。":`${a.methods.length} 個數位方法已選；${a.optimized?`已從 ${a.baseCount}N 壓縮為 ${a.count}N。`:`March 複雜度 ${a.count}N。`}`;
   const v=$("validation");v.textContent=errors.length?errors[0]:"參數有效";v.className="validation "+(errors.length?"error":"ok");
   $("summary").innerHTML=`<div class="metric"><span>Selected methods</span><strong>${a.methods.length}</strong></div><div class="metric"><span>Optimized operations</span><strong>${(a.count*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Saved operations</span><strong>${(a.savingsN*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Fault union</span><strong>${a.faults.length} / 9</strong></div>`;
   renderCoverage(a);
@@ -361,11 +355,11 @@ function renderCoverage(a){
     <div><span>Covered models</span><strong>${covered.size} / ${faultUniverse.length}</strong></div>
     <div><span>Deterministic digital</span><strong>${deterministic.size} / ${faultUniverse.length}</strong></div>
     <div><span>Uncovered</span><strong>${faultUniverse.length-covered.size}</strong></div>
-    <div><span>Complexity</span><strong>${a.count}N + special</strong></div>`;
+    <div><span>Complexity</span><strong>${a.count}N digital</strong></div>`;
   $("faultMatrix").innerHTML=faultUniverse.map(f=>{
     const hit=covered.has(f.id), det=deterministic.has(f.id);
     const sources=a.methods.filter(m=>m.faults.includes(f.id)).map(m=>m.short).join("、");
-    return `<article class="fault-card ${hit?"covered":"miss"}"><div><strong>${f.id}</strong><span>${f.type}</span></div><p>${f.name}</p><small>${hit?(det?`✓ ${sources}`:`△ ${sources}（特殊／統計）`):"— 尚未涵蓋"}</small></article>`;
+    return `<article class="fault-card ${hit?"covered":"miss"}"><div><strong>${f.id}</strong><span>${f.type}</span></div><p>${f.name}</p><small>${hit?`✓ ${sources}`:"— 純數位方法尚未涵蓋"}</small></article>`;
   }).join("");
 }
 
@@ -396,9 +390,9 @@ function faultExplanation(f,a){
     IRF:["儲存狀態正確但感測值錯誤時，read comparator 立即產生 fail。",allReads.slice(0,6)],
     CFwd:["01／10 checkerboard 讓同 word 的 aggressor 與 victim 交替，再讀回確認 victim 未被 write disturb。",checker],
     dIRF:["寫入後對同一 address 連續讀 4 次，sensitise 需要多次 read 才出現的 dynamic IRF。",repeated],
-    RTF:["由 weak-current／burn-in retention 流程執行，需要等待、電流控制與統計；不屬於下方一般 March operations。",[]],
-    TRDF:["由 sense-current tracking DfT 在 read 期間監看突發 bit flip；不是單靠 expected-data comparator。",[]],
-    TWF:["目前 survey 沒有有限次 March sequence 可保證偵測，因此維持未涵蓋。",[]]
+    RTF:["目前保留為未涵蓋；已移除需要 weak-current、等待控制或 burn-in 的非數位方法。",[]],
+    TRDF:["目前保留為未涵蓋；已移除需要 sense-current monitor 的類比 DfT。",[]],
+    TWF:["目前 survey 沒有有限次純數位 March sequence 可保證偵測，因此維持未涵蓋。",[]]
   };
   return descriptions[f.id];
 }
@@ -419,7 +413,7 @@ function renderSequence(c,a){
   const covered=new Set(a.faults);
   $("detectionMap").innerHTML=faultUniverse.map(f=>{
     const [description,refs]=faultExplanation(f,a),hit=covered.has(f.id);
-    return `<article class="detect-row ${hit?"hit":"miss"}"><div><strong>${f.id}</strong><span>${hit?"DETECTED":"NOT COVERED"}</span></div><p>${description}</p><small>${refs.length?`Evidence: ${refs.join(" · ")}`:(hit?"由特殊 DfT／統計流程涵蓋":"沒有對應 sequence")}</small></article>`;
+    return `<article class="detect-row ${hit?"hit":"miss"}"><div><strong>${f.id}</strong><span>${hit?"DETECTED":"NOT COVERED"}</span></div><p>${description}</p><small>${refs.length?`Evidence: ${refs.join(" · ")}`:"沒有對應的純數位 sequence"}</small></article>`;
   }).join("");
 }
 function showFile(key){activeFile=key;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.file===key));const f=files[key];if(!f)return;$("codeOutput").textContent=f.text;$("fileLabel").textContent=key==="guide"?"Integration notes":(key==="tb"?"SystemVerilog · Simulation":"SystemVerilog · Synthesizable")}
