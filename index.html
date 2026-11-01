@@ -11,7 +11,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.3</span></div>
+    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.6</span></div>
   </header>
 
   <main>
@@ -38,10 +38,6 @@
           <label class="algo-card"><input id="algoDirf14" type="checkbox" /><span class="algo-copy"><strong>dIRF March 14N</strong><small>dIRF（連續讀取觸發）</small><a class="paper-link" href="https://doi.org/10.1109/TEST.2018.8624725" target="_blank" rel="noopener" onclick="event.stopPropagation()">Nair et al., ITC 2018 ↗</a></span><span class="algo-kind digital">Digital</span></label>
           <label class="algo-card"><input id="algoMarchC" type="checkbox" /><span class="algo-copy"><strong>March C− 10N</strong><small>SAF · TF 基礎檢查</small><a class="paper-link" href="https://doi.org/10.1109/54.199799" target="_blank" rel="noopener" onclick="event.stopPropagation()">van de Goor, 1993 ↗</a></span><span class="algo-kind digital">Digital</span></label>
           <label class="algo-card new-method"><input id="algoMarchCM" type="checkbox" /><span class="algo-copy"><strong>March CM 7N</strong><small>SAF · TF · IRF；部分 W1DF／dR1DFU 不計入完整 dIRF coverage</small><a class="paper-link" href="https://mc.spacejournal.cn/article/doi/10.19304/J.ISSN1000-7180.2022.0385" target="_blank" rel="noopener" onclick="event.stopPropagation()">Yang et al., 2023 ↗</a></span><span class="algo-kind digital">Digital</span></label>
-          <label class="algo-card"><input id="algoRetentionWeak" type="checkbox" /><span class="algo-copy"><strong>Weak-current retention</strong><small>RTF 統計／retention characterization</small></span><span class="algo-kind special">Special DfT</span></label>
-          <label class="algo-card"><input id="algoBurninBinary" type="checkbox" /><span class="algo-copy"><strong>Burn-in binary search</strong><small>RTF，加速後二分搜尋</small></span><span class="algo-kind special">Burn-in</span></label>
-          <label class="algo-card"><input id="algoBurninLinear" type="checkbox" /><span class="algo-copy"><strong>Burn-in linear search</strong><small>RTF，加速後線性搜尋</small></span><span class="algo-kind special">Burn-in</span></label>
-          <label class="algo-card"><input id="algoTrdfDft" type="checkbox" /><span class="algo-copy"><strong>TRDF current-tracking DfT</strong><small>TRDF，需 sense-current monitor</small></span><span class="algo-kind analog">Analog DfT</span></label>
         </div>
         <div class="algorithm-options">
           <label class="check compact"><input id="paperLiteral" type="checkbox" /><span>WOM 使用論文原文 sequence（會顯示一致性警告）</span></label>
@@ -121,7 +117,7 @@
       </section>
     </section>
   </main>
-  <footer><span>STT-MRAM BIST IP Builder</span><span>Multi-algorithm · fault-union coverage · RTL export</span></footer>
+  <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
   <script src="app.js"></script>
 </body>
 </html>
