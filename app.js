@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
-const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady","ceLow","weLow","maskLow","macroModule","pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"];
-const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false,ceLow:true,weLow:true,maskLow:true,macroModule:"STTMRAM_MACRO",pinClk:"CLK",pinCe:"CEN",pinWe:"WEN",pinAddr:"A",pinDin:"D",pinDout:"Q",pinMask:"BWEN"};
+const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady"];
+const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false};
 let files = {}, activeFile = "core";
 
 const faultUniverse = [
@@ -18,6 +18,7 @@ const faultUniverse = [
 function readConfig(){
   const c={}; ids.forEach(id=>{const e=$(id);c[id]=e.type==="checkbox"?e.checked:(e.type==="number"?Number(e.value):e.value.trim())});
   if(c.autoAddr){c.addrWidth=Math.max(1,Math.ceil(Math.log2(Math.max(2,c.depth))));$("addrWidth").value=c.addrWidth}
+  c.ceLow=true; c.weLow=true; c.maskLow=true;
   return c;
 }
 
@@ -96,8 +97,6 @@ function validate(c){
   if(!Number.isInteger(c.depth)||c.depth<2)errors.push("Depth 必須是大於 1 的整數");
   if(!Number.isInteger(c.dataWidth)||c.dataWidth<2)errors.push("Data width 必須至少為 2");
   if((1<<Math.min(c.addrWidth,30))<c.depth && c.addrWidth<=30)errors.push("Address width 無法涵蓋 depth");
-  if(!/^[A-Za-z_]\w*$/.test(c.macroModule))errors.push("Macro module 名稱不是合法 identifier");
-  ["pinClk","pinCe","pinWe","pinAddr","pinDin","pinDout","pinMask"].forEach(k=>{if(!/^[A-Za-z_]\w*$/.test(c[k]))errors.push(`${k} 不是合法腳位名稱`)});
   return errors;
 }
 
@@ -203,34 +202,27 @@ endmodule
 `}
 
 function genLink(c){
-return `// Integration example: BIST and memory are separate blocks.
-// Replace only macro parameter values and pin mapping when the datasheet is available.
+return `// Generic integration wrapper: BIST and memory remain separate blocks.
+// Connect the mem_* ports to the selected memory macro outside this module.
 module sttmram_bist_memory_link #(
   parameter int ADDR_WIDTH=${c.addrWidth}, DATA_WIDTH=${c.dataWidth}, DEPTH=${c.depth}
 )(
   input logic clk, rst_n, bist_start,
   output logic bist_busy, bist_done, bist_fail,
-  output logic [31:0] bist_error_count
+  output logic [31:0] bist_error_count,
+  output logic mem_ce, mem_we,
+  output logic [ADDR_WIDTH-1:0] mem_addr,
+  output logic [DATA_WIDTH-1:0] mem_wdata, mem_wmask,
+  input  logic [DATA_WIDTH-1:0] mem_rdata,
+  input  logic mem_ready
 );
-  logic mem_ce, mem_we;
-  logic [ADDR_WIDTH-1:0] mem_addr, first_fail_addr;
-  logic [DATA_WIDTH-1:0] mem_wdata, mem_wmask, mem_rdata;
+  logic [ADDR_WIDTH-1:0] first_fail_addr;
 
   sttmram_bist_core #(.ADDR_WIDTH(ADDR_WIDTH),.DATA_WIDTH(DATA_WIDTH),.DEPTH(DEPTH)) u_bist (
     .clk, .rst_n, .start(bist_start), .busy(bist_busy), .done(bist_done), .fail(bist_fail),
     .error_count(bist_error_count), .first_fail_addr,
     .mem_ce, .mem_we, .mem_addr, .mem_wdata, .mem_wmask,
-    .mem_rdata, .mem_ready(1'b1)
-  );
-
-  ${c.macroModule} u_sttmram (
-    .${c.pinClk}(clk),
-    .${c.pinCe}(mem_ce),
-    .${c.pinWe}(mem_we),
-    .${c.pinAddr}(mem_addr),
-    .${c.pinDin}(mem_wdata),
-    .${c.pinDout}(mem_rdata),
-    .${c.pinMask}(mem_wmask)
+    .mem_rdata, .mem_ready
   );
 endmodule
 `}
@@ -320,10 +312,10 @@ Memory → BIST（Memory output / BIST input）
 整合原則
 --------
 1. sttmram_bist_core 不包含 memory macro，可以獨立 synthesis。
-2. bist_memory_link 只示範 net 與 Synopsys pin mapping。
-3. normal mode 和 BIST mode 共用 memory 時，請在 link 外加入 mux；切換只能在 memory idle 時進行。
+2. bist_memory_link 僅將通用 mem_* 介面帶到 module ports，不綁定任何 macro 名稱或腳位。
+3. normal mode 和 BIST mode 共用 memory 時，請在 wrapper 外加入 mux；切換只能在 memory idle 時進行。
 4. READ_LATENCY 必須從 datasheet 的 clock-to-Q timing 設定。
-5. 若 CEN/WEN/BWEN 為 active-low，保留目前 polarity 設定。
+5. 目前產生的 core 預設 CE／WE／MASK 為 active-low；之後確定 macro 規格再於 RTL parameter 調整。
 6. 第一次失敗位址保存在 first_fail_addr，總錯誤次數在 error_count。
 
 ${c.paperLiteral?"警告：目前使用論文原文 WOM sequence；其後半段相鄰 element 的資料狀態不一致，fault-free array 可能報錯。":"WOM 使用狀態一致版本；請在交付前讓教授確認論文原文中的疑似 sequence typo。"}

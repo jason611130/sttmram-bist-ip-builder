@@ -11,7 +11,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.6</span></div>
+    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v1.7</span></div>
   </header>
 
   <main>
@@ -71,26 +71,6 @@
             <label>Write latency<input id="writeLatency" type="number" min="1" max="32" value="1" /></label>
           </div>
           <label class="check"><input id="useReady" type="checkbox" /><span>等待 memory ready 訊號</span></label>
-        </fieldset>
-
-        <fieldset>
-          <legend>Signal polarity</legend>
-          <div class="checks-row">
-            <label class="check"><input id="ceLow" type="checkbox" checked /><span>CEN active-low</span></label>
-            <label class="check"><input id="weLow" type="checkbox" checked /><span>WEN active-low</span></label>
-            <label class="check"><input id="maskLow" type="checkbox" checked /><span>BWEN active-low</span></label>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Synopsys macro mapping</legend>
-          <label>Macro module<input id="macroModule" value="STTMRAM_MACRO" /></label>
-          <div class="pin-grid">
-            <label>Clock<input id="pinClk" value="CLK" /></label><label>Enable<input id="pinCe" value="CEN" /></label>
-            <label>Write enable<input id="pinWe" value="WEN" /></label><label>Address<input id="pinAddr" value="A" /></label>
-            <label>Write data<input id="pinDin" value="D" /></label><label>Read data<input id="pinDout" value="Q" /></label>
-            <label>Write mask<input id="pinMask" value="BWEN" /></label>
-          </div>
         </fieldset>
 
         <button id="generateBtn" class="primary">產生 BIST IP <span>→</span></button>
