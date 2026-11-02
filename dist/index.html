@@ -11,7 +11,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v2.0</span></div>
+    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v2.1</span></div>
   </header>
 
   <main>
@@ -51,10 +51,11 @@
         <div id="sequenceTimeline" class="sequence-timeline"></div>
         <div class="detection-explain">
           <div class="fault-tools">
-            <div><h4>Fault 說明與偵測方式</h4><p>需要時再展開，或使用放大檢視閱讀完整內容。</p></div>
-            <div class="fault-actions"><button id="faultToggleBtn" type="button" aria-expanded="false" aria-controls="detectionMap">展開說明</button><button id="faultExpandBtn" type="button">放大檢視</button></div>
+            <div><h4>Fault 名稱</h4><p>點選任一名稱查看該 fault 的完整說明與偵測方式。</p></div>
+            <div class="fault-actions"><button id="faultExpandBtn" type="button">放大檢視全部</button></div>
           </div>
-          <div id="detectionMap" class="detection-map" hidden></div>
+          <div id="faultNameGrid" class="fault-name-grid"></div>
+          <div id="faultSingleDetail" class="detection-map single-fault-detail" hidden></div>
         </div>
         <dialog id="faultDialog" class="fault-dialog" aria-labelledby="faultDialogTitle">
           <div class="fault-dialog-head"><div><h4 id="faultDialogTitle">Fault 說明與偵測方式</h4><p>內容會依目前選取的測試演算法更新。</p></div><button id="faultCloseBtn" type="button" aria-label="關閉放大檢視">關閉</button></div>
