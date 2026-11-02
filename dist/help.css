@@ -4,8 +4,8 @@
   margin-top: 1px;
 }
 .field-help::before {
-  content: "DATASHEET ";
-  color: #ffbc57;
-  font: 9px "Cascadia Code", Consolas, monospace;
-  letter-spacing: .08em;
+  content: "說明：";
+  color: #aab3bd;
+  font: 600 10px Inter, "Noto Sans TC", system-ui, sans-serif;
+  letter-spacing: 0;
 }
