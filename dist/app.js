@@ -403,10 +403,12 @@ function renderSequence(c,a){
     return `<article class="sequence-element"><header><span>M${i}</span><strong>${dir}</strong><small>${range}</small></header><div class="op-flow">${ops}</div></article>`;
   }).join("");
   const covered=new Set(a.faults);
-  $("detectionMap").innerHTML=faultUniverse.map(f=>{
+  const faultCards=faultUniverse.map(f=>{
     const detail=faultExplanation(f,a),hit=covered.has(f.id);
     return `<article class="detect-row ${hit?"hit":"miss"}"><div><strong>${f.id}</strong><span>${hit?"DETECTED":"NOT COVERED"}</span></div><p class="fault-definition"><b>Fault 說明</b>${detail.fault}</p><p class="detect-method"><b>偵測方式</b>${detail.detect}</p><small>${detail.refs.length?`Sequence evidence: ${detail.refs.join(" · ")}`:"目前沒有對應的純數位 sequence"}</small></article>`;
   }).join("");
+  $("detectionMap").innerHTML=faultCards;
+  $("faultDialogMap").innerHTML=faultCards;
 }
 function showFile(key){activeFile=key;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.file===key));const f=files[key];if(!f)return;$("codeOutput").textContent=f.text;$("fileLabel").textContent=key==="guide"?"Integration notes":(key==="tb"?"SystemVerilog · Simulation":"SystemVerilog · Synthesizable")}
 function download(name,text){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
@@ -416,5 +418,9 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>showFile(t.dataset.fi
 $("copyBtn").onclick=async()=>{await navigator.clipboard.writeText(files[activeFile].text);$("copyBtn").textContent="已複製";setTimeout(()=>$("copyBtn").textContent="複製",1200)};
 $("downloadBtn").onclick=()=>download(files[activeFile].name,files[activeFile].text);
 $("downloadAllBtn").onclick=()=>Object.values(files).forEach((f,i)=>setTimeout(()=>download(f.name,f.text),i*180));
+$("faultToggleBtn").onclick=()=>{const map=$("detectionMap"),willOpen=map.hidden;map.hidden=!willOpen;$("faultToggleBtn").textContent=willOpen?"收合說明":"展開說明";$("faultToggleBtn").setAttribute("aria-expanded",String(willOpen))};
+$("faultExpandBtn").onclick=()=>$("faultDialog").showModal();
+$("faultCloseBtn").onclick=()=>$("faultDialog").close();
+$("faultDialog").onclick=e=>{if(e.target===$("faultDialog"))$("faultDialog").close()};
 try{const saved=JSON.parse(localStorage.getItem("sttmram-bist-config"));if(saved)Object.entries(saved).forEach(([k,v])=>{const e=$(k);if(e)e.type==="checkbox"?e.checked=v:e.value=v})}catch{}
 render();
