@@ -1,7 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady"];
 const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false};
-let files = {}, activeFile = "core";
+let files = {}, activeFile = "core", selectedFaultId = null, faultCardHtmlById = {};
 
 const faultUniverse = [
   {id:"SAF",name:"Stuck-at fault",type:"永久"},
@@ -403,13 +403,17 @@ function renderSequence(c,a){
     return `<article class="sequence-element"><header><span>M${i}</span><strong>${dir}</strong><small>${range}</small></header><div class="op-flow">${ops}</div></article>`;
   }).join("");
   const covered=new Set(a.faults);
-  const faultCards=faultUniverse.map(f=>{
+  const faultEntries=faultUniverse.map(f=>{
     const detail=faultExplanation(f,a),hit=covered.has(f.id);
-    return `<article class="detect-row ${hit?"hit":"miss"}"><div><strong>${f.id}</strong><span>${hit?"DETECTED":"NOT COVERED"}</span></div><p class="fault-definition"><b>Fault 說明</b>${detail.fault}</p><p class="detect-method"><b>偵測方式</b>${detail.detect}</p><small>${detail.refs.length?`Sequence evidence: ${detail.refs.join(" · ")}`:"目前沒有對應的純數位 sequence"}</small></article>`;
-  }).join("");
-  $("detectionMap").innerHTML=faultCards;
-  $("faultDialogMap").innerHTML=faultCards;
+    const html=`<article class="detect-row ${hit?"hit":"miss"}"><div><strong>${f.id}</strong><span>${hit?"DETECTED":"NOT COVERED"}</span></div><p class="fault-definition"><b>Fault 說明</b>${detail.fault}</p><p class="detect-method"><b>偵測方式</b>${detail.detect}</p><small>${detail.refs.length?`Sequence evidence: ${detail.refs.join(" · ")}`:"目前沒有對應的純數位 sequence"}</small></article>`;
+    return {id:f.id,name:f.name,hit,html};
+  });
+  faultCardHtmlById=Object.fromEntries(faultEntries.map(x=>[x.id,x.html]));
+  $("faultNameGrid").innerHTML=faultEntries.map(x=>`<button type="button" class="fault-name-btn ${x.hit?"hit":"miss"}${selectedFaultId===x.id?" active":""}" data-fault="${x.id}" aria-expanded="${selectedFaultId===x.id}"><strong>${x.id}</strong><span>${x.name}</span><i>${x.hit?"已涵蓋":"未涵蓋"}</i></button>`).join("");
+  $("faultDialogMap").innerHTML=faultEntries.map(x=>x.html).join("");
+  renderSelectedFault();
 }
+function renderSelectedFault(){const detail=$("faultSingleDetail");if(!selectedFaultId||!faultCardHtmlById[selectedFaultId]){detail.hidden=true;detail.innerHTML=""}else{detail.hidden=false;detail.innerHTML=faultCardHtmlById[selectedFaultId]}document.querySelectorAll(".fault-name-btn").forEach(btn=>{const active=btn.dataset.fault===selectedFaultId;btn.classList.toggle("active",active);btn.setAttribute("aria-expanded",String(active))})}
 function showFile(key){activeFile=key;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.file===key));const f=files[key];if(!f)return;$("codeOutput").textContent=f.text;$("fileLabel").textContent=key==="guide"?"Integration notes":(key==="tb"?"SystemVerilog · Simulation":"SystemVerilog · Synthesizable")}
 function download(name,text){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 ids.forEach(id=>$(id).addEventListener("input",render));
@@ -418,7 +422,7 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>showFile(t.dataset.fi
 $("copyBtn").onclick=async()=>{await navigator.clipboard.writeText(files[activeFile].text);$("copyBtn").textContent="已複製";setTimeout(()=>$("copyBtn").textContent="複製",1200)};
 $("downloadBtn").onclick=()=>download(files[activeFile].name,files[activeFile].text);
 $("downloadAllBtn").onclick=()=>Object.values(files).forEach((f,i)=>setTimeout(()=>download(f.name,f.text),i*180));
-$("faultToggleBtn").onclick=()=>{const map=$("detectionMap"),willOpen=map.hidden;map.hidden=!willOpen;$("faultToggleBtn").textContent=willOpen?"收合說明":"展開說明";$("faultToggleBtn").setAttribute("aria-expanded",String(willOpen))};
+$("faultNameGrid").onclick=e=>{const btn=e.target.closest(".fault-name-btn");if(!btn)return;selectedFaultId=selectedFaultId===btn.dataset.fault?null:btn.dataset.fault;renderSelectedFault()};
 $("faultExpandBtn").onclick=()=>$("faultDialog").showModal();
 $("faultCloseBtn").onclick=()=>$("faultDialog").close();
 $("faultDialog").onclick=e=>{if(e.target===$("faultDialog"))$("faultDialog").close()};
