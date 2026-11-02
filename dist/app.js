@@ -376,15 +376,15 @@ function faultExplanation(f,a){
   const checker=elementRefs(a,e=>e.o.some(op=>op[1]==="01"||op[1]==="10"));
   const repeated=elementRefs(a,e=>compressedOps(e.o).some(g=>g.kind==="r"&&g.count>=4));
   const descriptions={
-    SAF:["分別寫入全 0／全 1並讀回；stuck-at 0 或 1 會造成 comparator mismatch。",transitions.slice(0,4)],
-    TF:["強制 00→11 與 11→00；無法完成任一方向的 cell 會在緊接的 read 被抓到。",transitions.slice(0,5)],
-    RDF:["每次 read 都比較 expected pattern；若讀取破壞資料，當次或後續同背景 read 會報錯。",allReads.slice(0,6)],
-    IRF:["儲存狀態正確但感測值錯誤時，read comparator 立即產生 fail。",allReads.slice(0,6)],
-    CFwd:["01／10 checkerboard 讓同 word 的 aggressor 與 victim 交替，再讀回確認 victim 未被 write disturb。",checker],
-    dIRF:["寫入後對同一 address 連續讀 4 次，sensitise 需要多次 read 才出現的 dynamic IRF。",repeated],
-    RTF:["目前保留為未涵蓋；已移除需要 weak-current、等待控制或 burn-in 的非數位方法。",[]],
-    TRDF:["目前保留為未涵蓋；已移除需要 sense-current monitor 的類比 DfT。",[]],
-    TWF:["目前 survey 沒有有限次純數位 March sequence 可保證偵測，因此維持未涵蓋。",[]]
+    SAF:{fault:"記憶單元永久固定在 0 或 1；不論寫入什麼資料，cell 都無法離開固定值。",detect:"分別寫入全 0 與全 1後讀回；固定值與 expected data 不同時，comparator 會產生 mismatch。",refs:transitions.slice(0,4)},
+    TF:{fault:"記憶單元有一個轉換方向失效，例如無法由 0→1 或無法由 1→0。",detect:"強制執行 00→11 與 11→00，再緊接著讀回；未完成轉換的 cell 會被抓到。",refs:transitions.slice(0,5)},
+    RDF:{fault:"Read destructive fault：讀取動作本身破壞 cell 內容，使儲存值在 read 後翻轉。",detect:"對同一背景進行 read 與後續 read 比較；若第一次讀取破壞資料，當次或下一次讀取會出現 mismatch。",refs:allReads.slice(0,6)},
+    IRF:{fault:"Cell 內部資料仍然正確，但 sense／read path 回傳錯誤值；讀取不一定會改變儲存狀態。",detect:"每次 read 都和 expected pattern 比較，感測值錯誤時 comparator 立即將 fail 拉高。",refs:allReads.slice(0,6)},
+    CFwd:{fault:"Write-disturb coupling fault：寫入 aggressor bit 時產生擾動，造成同一 word 或鄰近的 victim bit 改變。",detect:"使用 01／10 checkerboard 讓 aggressor 與 victim 交替切換，再讀回確認 victim 沒有被寫入動作干擾。",refs:checker},
+    dIRF:{fault:"單次 read 可能正常，但連續多次讀取同一位址後才回傳錯誤值，因此稱為 dynamic IRF。",detect:"寫入後對相同 address 連續讀取 4 次，觸發並觀察需要多次 read 才出現的錯誤。",refs:repeated},
+    RTF:{fault:"Retention fault：cell 在沒有 read／write 的期間，因保持能力不足而隨時間遺失資料。",detect:"目前純數位 sequence 沒有加入 retention 等待時間或 weak-current／burn-in 控制，因此不計入 coverage。",refs:[]},
+    TRDF:{fault:"Transient read disturb fault：讀取期間出現暫態擾動，使 cell 或 sensing 結果偶發翻轉，錯誤不一定能重現。",detect:"目前沒有 sense-current monitor 或可保證重現暫態事件的方法，因此純數位 March sequence 不宣稱涵蓋。",refs:[]},
+    TWF:{fault:"Transient write fault：某次寫入偶發未完成目標磁化切換，但再次寫入相同資料可能成功。",detect:"故障具有隨機性；目前 survey 沒有有限次純數位 March sequence 能保證觸發，因此維持未涵蓋。",refs:[]}
   };
   return descriptions[f.id];
 }
@@ -404,8 +404,8 @@ function renderSequence(c,a){
   }).join("");
   const covered=new Set(a.faults);
   $("detectionMap").innerHTML=faultUniverse.map(f=>{
-    const [description,refs]=faultExplanation(f,a),hit=covered.has(f.id);
-    return `<article class="detect-row ${hit?"hit":"miss"}"><div><strong>${f.id}</strong><span>${hit?"DETECTED":"NOT COVERED"}</span></div><p>${description}</p><small>${refs.length?`Evidence: ${refs.join(" · ")}`:"沒有對應的純數位 sequence"}</small></article>`;
+    const detail=faultExplanation(f,a),hit=covered.has(f.id);
+    return `<article class="detect-row ${hit?"hit":"miss"}"><div><strong>${f.id}</strong><span>${hit?"DETECTED":"NOT COVERED"}</span></div><p class="fault-definition"><b>Fault 說明</b>${detail.fault}</p><p class="detect-method"><b>偵測方式</b>${detail.detect}</p><small>${detail.refs.length?`Sequence evidence: ${detail.refs.join(" · ")}`:"目前沒有對應的純數位 sequence"}</small></article>`;
   }).join("");
 }
 function showFile(key){activeFile=key;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.file===key));const f=files[key];if(!f)return;$("codeOutput").textContent=f.text;$("fileLabel").textContent=key==="guide"?"Integration notes":(key==="tb"?"SystemVerilog · Simulation":"SystemVerilog · Synthesizable")}
