@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.3" />
-  <link rel="stylesheet" href="help.css?v=2.3" />
+  <link rel="stylesheet" href="styles.css?v=2.4" />
+  <link rel="stylesheet" href="help.css?v=2.4" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.3</span></div>
+    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.4</span></div>
   </header>
 
   <main>
@@ -31,8 +31,8 @@
     </section>
 
     <section class="workspace">
-      <fieldset class="algorithms-panel">
-        <legend>Test algorithms（可複選）</legend>
+      <section class="algorithms-panel" aria-labelledby="algorithmsTitle">
+        <h2 id="algorithmsTitle" class="section-title">Test algorithms（可複選）</h2>
         <div class="algorithm-picker">
           <label class="algo-card recommended"><input id="algoWom26" type="checkbox" checked /><span class="algo-copy"><strong>WOM March 26N</strong><small>SAF · TF · RDF · IRF · CFwd</small><a class="paper-link" href="https://doi.org/10.1109/TEST.2016.7805834" target="_blank" rel="noopener" onclick="event.stopPropagation()">Yoon et al., EMACS 2016 ↗</a></span><span class="algo-kind digital">Digital</span></label>
           <label class="algo-card"><input id="algoDirf14" type="checkbox" /><span class="algo-copy"><strong>dIRF March 14N</strong><small>dIRF（連續讀取觸發）</small><a class="paper-link" href="https://doi.org/10.1109/TEST.2018.8624725" target="_blank" rel="noopener" onclick="event.stopPropagation()">Nair et al., ITC 2018 ↗</a></span><span class="algo-kind digital">Digital</span></label>
@@ -44,7 +44,7 @@
           <label class="check optimizer-toggle"><input id="optimizeSequence" type="checkbox" checked /><span><strong>Coverage-aware 最佳化</strong><small>移除被涵蓋的測試，並融合相容 March elements</small></span></label>
         </div>
         <div id="algoNote" class="note"></div>
-      </fieldset>
+      </section>
       <section class="sequence-panel sequence-first" aria-labelledby="sequenceTitle">
         <div class="sequence-head"><div><p class="step">EXECUTION TRACE</p><h3 id="sequenceTitle">Detection sequence</h3><p>這就是產生進 RTL 的實際順序；由左到右執行，每個 element 會走完整個 address range。</p></div><div id="sequenceTotal" class="sequence-total"></div></div>
         <div id="sequenceFormula" class="sequence-formula"></div>
@@ -109,6 +109,6 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="app.js?v=2.3"></script>
+  <script src="app.js?v=2.4"></script>
 </body>
 </html>

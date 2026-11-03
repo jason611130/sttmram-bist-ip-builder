@@ -125,6 +125,14 @@ footer{font-family:var(--sans)}
 .output-panel .fault-card.covered{background:#24352d;border-color:#597565}
 .output-panel .coverage-ring:after{background:var(--zone-output-card)}
 
+.algorithms-panel .section-title{
+  margin:0 0 20px;
+  padding:0;
+  color:#d9e2ee;
+  font:600 18px/1.4 var(--sans);
+  letter-spacing:0;
+}
+
 @media(max-width:1000px){
   .config-panel{border-bottom-color:#514735}
 }
