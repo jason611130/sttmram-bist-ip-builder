@@ -133,6 +133,17 @@ footer{font-family:var(--sans)}
   letter-spacing:0;
 }
 
+.code-export{margin-top:4px}
+.code-collapse-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 18px;border:1px solid #394c42;border-radius:9px 9px 0 0;background:var(--zone-output-card)}
+.code-collapse-bar h3{margin:0;font-size:18px}.code-collapse-bar .step{margin:0 0 4px}
+.code-collapse-bar button{min-width:76px;border:1px solid #597565;border-radius:6px;background:#24352d;color:#d8e4dd;padding:8px 13px;font:12px var(--sans);cursor:pointer}
+.code-collapse-bar button:hover{background:#2c4036}
+.code-export.collapsed .code-collapse-bar{border-radius:9px}
+.code-export #verilogContent[hidden]{display:none}
+.code-export:not(.collapsed) .tabs{margin-top:8px}
+
+@media(max-width:620px){.code-collapse-bar{padding:14px}.code-collapse-bar h3{font-size:16px}}
+
 @media(max-width:1000px){
   .config-panel{border-bottom-color:#514735}
 }

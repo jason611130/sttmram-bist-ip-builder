@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.4" />
-  <link rel="stylesheet" href="help.css?v=2.4" />
+  <link rel="stylesheet" href="styles.css?v=2.5" />
+  <link rel="stylesheet" href="help.css?v=2.5" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.4</span></div>
+    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.5</span></div>
   </header>
 
   <main>
@@ -97,18 +97,26 @@
           <div id="faultMatrix" class="fault-matrix"></div>
           <p class="coverage-note">此處計算的是 survey 故障模型「種類聯集」，不是 fault-injection instance coverage。相同 fault 被多個演算法涵蓋時只計一次。</p>
         </section>
-        <div class="tabs" role="tablist">
-          <button class="tab active" data-file="core">bist_core.v</button>
-          <button class="tab" data-file="link">bist_memory_link.v</button>
-          <button class="tab" data-file="tb">tb_sttmram_bist.v</button>
-          <button class="tab" data-file="guide">整合說明</button>
-        </div>
-        <div class="code-toolbar"><span id="fileLabel">Verilog-2001 · Synthesizable</span><div><button id="copyBtn">複製</button><button id="downloadBtn">下載此檔</button><button id="downloadAllBtn" class="accent">全部下載</button></div></div>
-        <pre><code id="codeOutput"></code></pre>
+        <section class="code-export" id="codeExport" aria-labelledby="verilogOutputTitle">
+          <div class="code-collapse-bar">
+            <div><p class="step">VERILOG OUTPUT</p><h3 id="verilogOutputTitle">Verilog 輸出</h3></div>
+            <button id="codeCollapseBtn" type="button" aria-expanded="true" aria-controls="verilogContent">收合</button>
+          </div>
+          <div id="verilogContent">
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-file="core">bist_core.v</button>
+              <button class="tab" data-file="link">bist_memory_link.v</button>
+              <button class="tab" data-file="tb">tb_sttmram_bist.v</button>
+              <button class="tab" data-file="guide">整合說明</button>
+            </div>
+            <div class="code-toolbar"><span id="fileLabel">Verilog-2001 · Synthesizable</span><div><button id="copyBtn">複製</button><button id="downloadBtn">下載此檔</button><button id="downloadAllBtn" class="accent">全部下載</button></div></div>
+            <pre><code id="codeOutput"></code></pre>
+          </div>
+        </section>
       </section>
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="app.js?v=2.4"></script>
+  <script src="app.js?v=2.5"></script>
 </body>
 </html>
