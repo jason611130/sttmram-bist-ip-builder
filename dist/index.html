@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 SystemVerilog BIST IP。" />
+  <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="help.css" />
@@ -11,7 +11,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> SystemVerilog generator <span class="version">v2.2</span></div>
+    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.3</span></div>
   </header>
 
   <main>
@@ -84,7 +84,7 @@
           <label class="check"><input id="useReady" type="checkbox" /><span>等待 memory ready 訊號</span></label>
         </fieldset>
 
-        <button id="generateBtn" class="primary">產生 BIST IP <span>→</span></button>
+        <button id="generateBtn" class="primary">產生 Verilog BIST IP <span>→</span></button>
       </aside>
 
       <section class="output-panel">
@@ -98,12 +98,12 @@
           <p class="coverage-note">此處計算的是 survey 故障模型「種類聯集」，不是 fault-injection instance coverage。相同 fault 被多個演算法涵蓋時只計一次。</p>
         </section>
         <div class="tabs" role="tablist">
-          <button class="tab active" data-file="core">bist_core.sv</button>
-          <button class="tab" data-file="link">bist_memory_link.sv</button>
-          <button class="tab" data-file="tb">tb_sttmram_bist.sv</button>
+          <button class="tab active" data-file="core">bist_core.v</button>
+          <button class="tab" data-file="link">bist_memory_link.v</button>
+          <button class="tab" data-file="tb">tb_sttmram_bist.v</button>
           <button class="tab" data-file="guide">整合說明</button>
         </div>
-        <div class="code-toolbar"><span id="fileLabel">SystemVerilog · Synthesizable</span><div><button id="copyBtn">複製</button><button id="downloadBtn">下載此檔</button><button id="downloadAllBtn" class="accent">全部下載</button></div></div>
+        <div class="code-toolbar"><span id="fileLabel">Verilog-2001 · Synthesizable</span><div><button id="copyBtn">複製</button><button id="downloadBtn">下載此檔</button><button id="downloadAllBtn" class="accent">全部下載</button></div></div>
         <pre><code id="codeOutput"></code></pre>
       </section>
     </section>
