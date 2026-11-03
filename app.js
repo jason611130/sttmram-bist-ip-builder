@@ -439,6 +439,15 @@ function download(name,text){const a=document.createElement("a");a.href=URL.crea
 ids.forEach(id=>$(id).addEventListener("input",render));
 $("generateBtn").onclick=render;$("resetBtn").onclick=()=>{Object.entries(defaults).forEach(([k,v])=>{const e=$(k);if(e)e.type==="checkbox"?e.checked=v:e.value=v});render()};
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>showFile(t.dataset.file));
+function setCodeCollapsed(collapsed){
+  $("verilogContent").hidden=collapsed;
+  $("codeExport").classList.toggle("collapsed",collapsed);
+  $("codeCollapseBtn").textContent=collapsed?"展開":"收合";
+  $("codeCollapseBtn").setAttribute("aria-expanded",String(!collapsed));
+  localStorage.setItem("sttmram-verilog-collapsed",collapsed?"1":"0");
+}
+$("codeCollapseBtn").onclick=()=>setCodeCollapsed(!$("verilogContent").hidden);
+setCodeCollapsed(localStorage.getItem("sttmram-verilog-collapsed")==="1");
 $("copyBtn").onclick=async()=>{await navigator.clipboard.writeText(files[activeFile].text);$("copyBtn").textContent="已複製";setTimeout(()=>$("copyBtn").textContent="複製",1200)};
 $("downloadBtn").onclick=()=>download(files[activeFile].name,files[activeFile].text);
 $("downloadAllBtn").onclick=()=>Object.values(files).forEach((f,i)=>setTimeout(()=>download(f.name,f.text),i*180));
