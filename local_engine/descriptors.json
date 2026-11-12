@@ -1,0 +1,106 @@
+[
+  {
+    "id": "SAF",
+    "name": "Stuck-at fault",
+    "description": "Victim cell is permanently forced to 0 or 1.",
+    "roles": ["VTM"],
+    "relation": "single",
+    "supported": true,
+    "variants": [
+      {"id": "SA0", "initial_state": 0, "trigger": {"target": "VTM", "operation": "write"}, "effect": {"target": "VTM", "state": "force0"}},
+      {"id": "SA1", "initial_state": 1, "trigger": {"target": "VTM", "operation": "write"}, "effect": {"target": "VTM", "state": "force1"}}
+    ]
+  },
+  {
+    "id": "TF",
+    "name": "Transition fault",
+    "description": "Victim cell cannot complete one write transition direction.",
+    "roles": ["VTM"],
+    "relation": "single",
+    "supported": true,
+    "variants": [
+      {"id": "TF0to1", "trigger": {"target": "VTM", "operation": "write", "transition": "0->1"}, "effect": {"target": "VTM", "state": "hold"}},
+      {"id": "TF1to0", "trigger": {"target": "VTM", "operation": "write", "transition": "1->0"}, "effect": {"target": "VTM", "state": "hold"}}
+    ]
+  },
+  {
+    "id": "RDF",
+    "name": "Read destructive fault",
+    "description": "A read returns the stored value but flips the victim state after the read.",
+    "roles": ["VTM"],
+    "relation": "single",
+    "supported": true,
+    "variants": [
+      {"id": "RDF0", "trigger": {"target": "VTM", "operation": "read", "state": 0}, "effect": {"target": "VTM", "state": "flip", "timing": "after"}},
+      {"id": "RDF1", "trigger": {"target": "VTM", "operation": "read", "state": 1}, "effect": {"target": "VTM", "state": "flip", "timing": "after"}}
+    ]
+  },
+  {
+    "id": "IRF",
+    "name": "Incorrect read fault",
+    "description": "Stored data is unchanged, while the victim read output is inverted.",
+    "roles": ["VTM"],
+    "relation": "single",
+    "supported": true,
+    "variants": [
+      {"id": "IRF0", "trigger": {"target": "VTM", "operation": "read", "state": 0}, "effect": {"target": "VTM", "read_output": "invert"}},
+      {"id": "IRF1", "trigger": {"target": "VTM", "operation": "read", "state": 1}, "effect": {"target": "VTM", "read_output": "invert"}}
+    ]
+  },
+  {
+    "id": "CFwd",
+    "name": "Write-disturb coupling fault",
+    "description": "An aggressor write transition flips a constrained victim cell.",
+    "roles": ["AGR", "VTM"],
+    "relation": "same_word_adjacent",
+    "supported": true,
+    "variants": [
+      {"id": "CFwd01V0", "trigger": {"target": "AGR", "operation": "write", "transition": "0->1", "requires": {"VTM": 0}}, "effect": {"target": "VTM", "state": "flip"}},
+      {"id": "CFwd01V1", "trigger": {"target": "AGR", "operation": "write", "transition": "0->1", "requires": {"VTM": 1}}, "effect": {"target": "VTM", "state": "flip"}},
+      {"id": "CFwd10V0", "trigger": {"target": "AGR", "operation": "write", "transition": "1->0", "requires": {"VTM": 0}}, "effect": {"target": "VTM", "state": "flip"}},
+      {"id": "CFwd10V1", "trigger": {"target": "AGR", "operation": "write", "transition": "1->0", "requires": {"VTM": 1}}, "effect": {"target": "VTM", "state": "flip"}}
+    ]
+  },
+  {
+    "id": "dIRF",
+    "name": "Dynamic incorrect read fault",
+    "description": "The victim read output inverts after a configurable number of consecutive reads.",
+    "roles": ["VTM"],
+    "relation": "single",
+    "supported": true,
+    "variants": [
+      {"id": "dIRF0x4", "trigger": {"target": "VTM", "operation": "read", "state": 0, "repeat": 4}, "effect": {"target": "VTM", "read_output": "invert"}},
+      {"id": "dIRF1x4", "trigger": {"target": "VTM", "operation": "read", "state": 1, "repeat": 4}, "effect": {"target": "VTM", "read_output": "invert"}}
+    ]
+  },
+  {
+    "id": "RTF",
+    "name": "Retention fault",
+    "description": "Victim state flips after an explicit idle operation; ordinary March r/w sequences do not activate it.",
+    "roles": ["VTM"],
+    "relation": "single",
+    "supported": true,
+    "variants": [
+      {"id": "RTF0", "trigger": {"target": "VTM", "operation": "idle", "state": 0}, "effect": {"target": "VTM", "state": "flip"}},
+      {"id": "RTF1", "trigger": {"target": "VTM", "operation": "idle", "state": 1}, "effect": {"target": "VTM", "state": "flip"}}
+    ]
+  },
+  {
+    "id": "TRDF",
+    "name": "Transient read disturb fault",
+    "description": "A probabilistic read disturbance requires an occurrence model before deterministic coverage can be claimed.",
+    "roles": ["VTM"],
+    "relation": "single",
+    "supported": false,
+    "unsupported_reason": "No deterministic occurrence probability or trigger window is defined."
+  },
+  {
+    "id": "TWF",
+    "name": "Transient write fault",
+    "description": "A probabilistic write failure requires an occurrence model before deterministic coverage can be claimed.",
+    "roles": ["VTM"],
+    "relation": "single",
+    "supported": false,
+    "unsupported_reason": "No deterministic occurrence probability or trigger window is defined."
+  }
+]

@@ -2,6 +2,8 @@ const $ = (id) => document.getElementById(id);
 const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady"];
 const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false};
 let files = {}, activeFile = "core", selectedFaultId = null, faultCardHtmlById = {};
+let activeFaultCoverageKey = "", activeFaultCoverageLabel = "";
+let faultDescriptors = [], selectedDescriptorIds = new Set(), simulationResult = null, engineOnline = false;
 
 const faultUniverse = [
   {id:"SAF",name:"Stuck-at fault",type:"永久"},
@@ -341,6 +343,97 @@ Memory → BIST（Memory output / BIST input）
 ${c.paperLiteral?"警告：目前使用論文原文 WOM sequence；其後半段相鄰 element 的資料狀態不一致，fault-free array 可能報錯。":"WOM 使用狀態一致版本；請在交付前讓教授確認論文原文中的疑似 sequence typo。"}
 `}
 
+function faultCoverageKey(c,a){
+  return JSON.stringify({methods:a.methods.map(m=>m.id).sort(),optimized:c.optimizeSequence,paperLiteral:c.paperLiteral,depth:c.depth,dataWidth:c.dataWidth,addrWidth:c.addrWidth});
+}
+
+function renderFaultCoverage(c,a){
+  activeFaultCoverageKey=faultCoverageKey(c,a);
+  activeFaultCoverageLabel=`${a.methods.map(m=>m.short).join(" + ")||"未選擇演算法"} · ${a.count}N · ${c.depth} × ${c.dataWidth}`;
+  $("coverageConfigLabel").textContent=activeFaultCoverageLabel;
+  if(simulationResult&&simulationResult._configKey!==activeFaultCoverageKey){
+    $("simulationMessage").textContent="設定已變更；按「開始本機模擬」重新產生 coverage。";
+    $("simulationMessage").className="simulation-message warn";
+  }
+  if(!simulationResult)renderEmptySimulation();
+}
+
+function faultCoverageCsv(){
+  if(!simulationResult)return "";
+  const rows=[["configuration",activeFaultCoverageLabel],["fault","name","status","injected","activated","detected","undetected","coverage","first_detection"]];
+  simulationResult.models.forEach(item=>rows.push([item.id,item.name,item.status,item.injected,item.activated??"",item.detected,item.undetected,item.coverage??"N/A",formatEvidence(item.first_detection)]));
+  return rows.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\r\n");
+}
+
+function escapeHtml(value){return String(value).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]))}
+function formatEvidence(w){return w?`${w.element} / ${w.operation} / A${w.address} B${w.bit}: ${w.golden_output}→${w.faulty_output}`:"—"}
+function renderEmptySimulation(){
+  const source=faultDescriptors.length?faultDescriptors:faultUniverse;
+  $("faultCoverageRows").innerHTML=source.map(f=>`<tr><td><span class="fault-code">${escapeHtml(f.id)}</span><br><small>${escapeHtml(f.name)}</small></td><td colspan="6" class="not-run">尚未由本機引擎計算</td></tr>`).join("");
+  $("faultCoverageSummary").innerHTML=`<div><span>Total injected</span><strong>—</strong></div><div><span>Total detected</span><strong>—</strong></div><div><span>Weighted coverage</span><strong>—</strong></div><div><span>Engine</span><strong>${engineOnline?"Ready":"Offline"}</strong></div>`;
+}
+
+function renderDescriptorGrid(){
+  $("descriptorGrid").innerHTML=faultDescriptors.map(d=>{
+    const checked=selectedDescriptorIds.has(d.id), supported=d.supported!==false;
+    return `<details class="descriptor-card ${supported?"supported":"unsupported"}"><summary><label><input type="checkbox" data-descriptor-id="${escapeHtml(d.id)}" ${checked?"checked":""}><span><strong>${escapeHtml(d.id)}</strong><small>${escapeHtml(d.name)}</small></span></label><i>${supported?d.relation:"N/A"}</i></summary><p>${escapeHtml(d.description||"")}</p><dl><div><dt>Roles</dt><dd>${escapeHtml((d.roles||[]).join(" · "))}</dd></div><div><dt>Variants</dt><dd>${d.variants?.length||0}</dd></div></dl><pre>${escapeHtml(JSON.stringify(d,null,2))}</pre></details>`;
+  }).join("");
+}
+
+function renderSimulationResult(result){
+  simulationResult=result;
+  $("coverageCsvBtn").disabled=false;
+  $("faultCoverageRows").innerHTML=result.models.map(item=>{
+    const status=item.status, coverage=item.coverage==null?"N/A":`${Number(item.coverage).toFixed(2)}%`;
+    const cls=status!=="complete"?"not-run":item.coverage===100?"complete":item.coverage>0?"partial":"invalid";
+    const evidence=item.first_detection?`<button class="evidence-btn" data-evidence="${escapeHtml(item.id)}" title="${escapeHtml(item.first_detection.instance)}">${escapeHtml(formatEvidence(item.first_detection))}</button>`:`<span>${escapeHtml(item.reason||"—")}</span>`;
+    return `<tr><td><span class="fault-code">${escapeHtml(item.id)}</span><br><small>${escapeHtml(item.name)}</small></td><td>${Number(item.injected).toLocaleString()}</td><td>${item.activated==null?"—":Number(item.activated).toLocaleString()}</td><td>${Number(item.detected).toLocaleString()}</td><td>${Number(item.undetected).toLocaleString()}</td><td class="coverage-value ${cls}">${coverage}</td><td class="evidence-cell">${evidence}</td></tr>`;
+  }).join("");
+  const s=result.summary;
+  $("faultCoverageSummary").innerHTML=`<div><span>Total injected</span><strong>${Number(s.injected).toLocaleString()}</strong></div><div><span>Total detected</span><strong>${Number(s.detected).toLocaleString()}</strong></div><div><span>Weighted coverage</span><strong>${s.weightedCoverage==null?"N/A":`${Number(s.weightedCoverage).toFixed(2)}%`}</strong></div><div><span>Runtime</span><strong>${Number(result.elapsedSeconds).toFixed(3)} s</strong></div>`;
+  $("simulationMessage").textContent=`本機計算完成 · ${result.models.length} 個 fault models · 結果已保存：${result.resultFile||"local engine"}`;
+  $("simulationMessage").className="simulation-message ok";
+}
+
+async function connectLocalEngine(){
+  try{
+    const health=await fetch("/api/health",{cache:"no-store"});
+    const healthData=await health.json();
+    if(!health.ok||!healthData.ok)throw new Error("engine unavailable");
+    const response=await fetch("/api/descriptors",{cache:"no-store"});
+    const data=await response.json();
+    faultDescriptors=data.descriptors||[];
+    selectedDescriptorIds=new Set(faultDescriptors.map(d=>d.id));
+    engineOnline=true;
+    $("engineDot").classList.add("online");
+    $("engineStatus").textContent="本機 Fault Engine 已連線";
+    $("engineHint").textContent=`${faultDescriptors.length} 個 descriptors 可用`;
+    $("simulationRunBtn").disabled=false;
+    renderDescriptorGrid();renderEmptySimulation();
+  }catch{
+    engineOnline=false;
+    $("engineStatus").textContent="本機 Fault Engine 未連線";
+    $("engineHint").textContent="執行 python local_engine/server.py，再重新整理此頁";
+    $("simulationRunBtn").disabled=true;
+    renderEmptySimulation();
+  }
+}
+
+async function runLocalSimulation(){
+  const c=readConfig(),a=algorithm(c),errors=validate(c);
+  if(errors.length){$("simulationMessage").textContent=errors[0];$("simulationMessage").className="simulation-message error";return}
+  if(!selectedDescriptorIds.size){$("simulationMessage").textContent="請至少選擇一個 Fault Descriptor。";$("simulationMessage").className="simulation-message error";return}
+  const button=$("simulationRunBtn");button.disabled=true;button.textContent="本機計算中…";
+  $("simulationMessage").textContent="正在產生 instances 並逐一比較 golden / faulty output…";$("simulationMessage").className="simulation-message running";
+  const payload={memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:a.name,operationComplexity:`${a.count}N`,faults:[...selectedDescriptorIds],couplingRelation:$("couplingRelation").value,maxInstances:Number($("maxInstances").value),sequence:a.elements.map(e=>({direction:e.d?"down":"up",operations:e.o.map(op=>({kind:op[0],pattern:op[1]}))}))};
+  try{
+    const response=await fetch("/api/simulate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const result=await response.json();if(!response.ok)throw new Error(result.error||"Simulation failed");
+    result._configKey=activeFaultCoverageKey;renderSimulationResult(result);
+  }catch(error){$("simulationMessage").textContent=`模擬失敗：${error.message}`;$("simulationMessage").className="simulation-message error"}
+  finally{button.disabled=!engineOnline;button.textContent="開始本機模擬"}
+}
+
 function render(){
   const c=readConfig(),a=algorithm(c),errors=validate(c);
   $("addrWidth").disabled=c.autoAddr;
@@ -349,13 +442,13 @@ function render(){
   $("algoNote").textContent=c.paperLiteral&&c.algoWom26?"警告：論文後半段的起始 expected pattern 與前一 element 結束狀態不一致。":`${a.methods.length} 個數位方法已選；${a.optimized?`已從 ${a.baseCount}N 壓縮為 ${a.count}N。`:`March 複雜度 ${a.count}N。`}`;
   const v=$("validation");v.textContent=errors.length?errors[0]:"參數有效";v.className="validation "+(errors.length?"error":"ok");
   $("summary").innerHTML=`<div class="metric"><span>Selected methods</span><strong>${a.methods.length}</strong></div><div class="metric"><span>Optimized operations</span><strong>${(a.count*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Saved operations</span><strong>${(a.savingsN*c.depth).toLocaleString()}</strong></div><div class="metric"><span>Fault union</span><strong>${a.faults.length} / 9</strong></div>`;
-  renderCoverage(a);
+  renderCoverage(c,a);
   renderSequence(c,a);
   if(!errors.length){files={core:{name:"sttmram_bist_core.v",text:genCore(c,a)},link:{name:"sttmram_bist_memory_link.v",text:genLink(c)},tb:{name:"tb_sttmram_bist.v",text:genTb(c)},guide:{name:"README.txt",text:guide(c,a)}}}
   showFile(activeFile); localStorage.setItem("sttmram-bist-config",JSON.stringify(c));
 }
 
-function renderCoverage(a){
+function renderCoverage(c,a){
   const covered=new Set(a.faults), deterministic=new Set(a.deterministic);
   const percent=covered.size/faultUniverse.length*100;
   $("coverageRing").style.setProperty("--coverage",`${percent*3.6}deg`);
@@ -373,6 +466,7 @@ function renderCoverage(a){
     const sources=a.methods.filter(m=>m.faults.includes(f.id)).map(m=>m.short).join("、");
     return `<article class="fault-card ${hit?"covered":"miss"}"><div><strong>${f.id}</strong><span>${f.type}</span></div><p>${f.name}</p><small>${hit?`✓ ${sources}`:"— 純數位方法尚未涵蓋"}</small></article>`;
   }).join("");
+  renderFaultCoverage(c,a);
 }
 
 function compressedOps(ops){
@@ -451,9 +545,20 @@ setCodeCollapsed(localStorage.getItem("sttmram-verilog-collapsed")==="1");
 $("copyBtn").onclick=async()=>{await navigator.clipboard.writeText(files[activeFile].text);$("copyBtn").textContent="已複製";setTimeout(()=>$("copyBtn").textContent="複製",1200)};
 $("downloadBtn").onclick=()=>download(files[activeFile].name,files[activeFile].text);
 $("downloadAllBtn").onclick=()=>Object.values(files).forEach((f,i)=>setTimeout(()=>download(f.name,f.text),i*180));
+$("coverageCsvBtn").onclick=()=>download("sttmram_fault_coverage.csv",faultCoverageCsv());
+$("simulationRunBtn").onclick=runLocalSimulation;
+function markSimulationStale(){if(!simulationResult)return;$("simulationMessage").textContent="模擬設定已變更；請重新執行本機計算。";$("simulationMessage").className="simulation-message warn"}
+$("descriptorGrid").onchange=e=>{const input=e.target.closest("input[data-descriptor-id]");if(!input)return;input.checked?selectedDescriptorIds.add(input.dataset.descriptorId):selectedDescriptorIds.delete(input.dataset.descriptorId);markSimulationStale()};
+$("couplingRelation").onchange=markSimulationStale;
+$("maxInstances").oninput=markSimulationStale;
+$("loadLatestBtn").onclick=async()=>{try{const response=await fetch("/api/results/latest",{cache:"no-store"});const data=await response.json();if(!data.result)throw new Error("沒有保存的結果");data.result._configKey=activeFaultCoverageKey;renderSimulationResult(data.result)}catch(error){$("simulationMessage").textContent=`無法載入：${error.message}`;$("simulationMessage").className="simulation-message error"}};
+const descriptorTemplate={id:"CUSTOM_TF",name:"Custom transition fault",description:"Example descriptor",roles:["VTM"],relation:"single",supported:true,variants:[{id:"CUSTOM_0to1",trigger:{target:"VTM",operation:"write",transition:"0->1"},effect:{target:"VTM",state:"hold"}}]};
+$("descriptorTemplateBtn").onclick=()=>{$("descriptorJson").value=JSON.stringify(descriptorTemplate,null,2)};
+$("descriptorSaveBtn").onclick=async()=>{const status=$("descriptorSaveStatus");try{const descriptor=JSON.parse($("descriptorJson").value);const response=await fetch("/api/descriptors",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({descriptor})});const data=await response.json();if(!response.ok)throw new Error(data.error||"儲存失敗");status.textContent=`已儲存 ${descriptor.id}`;await connectLocalEngine()}catch(error){status.textContent=`錯誤：${error.message}`}};
 $("faultNameGrid").onclick=e=>{const btn=e.target.closest(".fault-name-btn");if(!btn)return;selectedFaultId=selectedFaultId===btn.dataset.fault?null:btn.dataset.fault;renderSelectedFault()};
 $("faultExpandBtn").onclick=()=>$("faultDialog").showModal();
 $("faultCloseBtn").onclick=()=>$("faultDialog").close();
 $("faultDialog").onclick=e=>{if(e.target===$("faultDialog"))$("faultDialog").close()};
 try{const saved=JSON.parse(localStorage.getItem("sttmram-bist-config"));if(saved)Object.entries(saved).forEach(([k,v])=>{const e=$(k);if(e)e.type==="checkbox"?e.checked=v:e.value=v})}catch{}
 render();
+connectLocalEngine();
