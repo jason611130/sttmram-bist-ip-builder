@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.5" />
-  <link rel="stylesheet" href="help.css?v=2.5" />
+  <link rel="stylesheet" href="styles.css?v=2.7" />
+  <link rel="stylesheet" href="help.css?v=2.7" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.5</span></div>
+    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.7</span></div>
   </header>
 
   <main>
@@ -97,6 +97,38 @@
           <div id="faultMatrix" class="fault-matrix"></div>
           <p class="coverage-note">此處計算的是 survey 故障模型「種類聯集」，不是 fault-injection instance coverage。相同 fault 被多個演算法涵蓋時只計一次。</p>
         </section>
+        <section class="fault-sim-panel" aria-labelledby="faultSimTitle">
+          <div class="fault-sim-head">
+            <div><p class="step">LOCAL SEQUENTIAL FAULT SIMULATION</p><h3 id="faultSimTitle">Descriptor 計算的 Fault coverage</h3><p>本機引擎逐一產生 fault instance、執行完整序列，並比較 faulty output 與 fault-free golden output。UI 只顯示計算結果。</p></div>
+            <div class="fault-sim-actions"><button id="coverageCsvBtn" type="button" disabled>匯出 CSV</button><button id="loadLatestBtn" type="button">載入最近結果</button></div>
+          </div>
+          <div class="engine-bar"><div><span id="engineDot" class="engine-dot"></span><strong id="engineStatus">正在連線本機引擎…</strong><small id="engineHint">請以 python local_engine/server.py 啟動</small></div><button id="simulationRunBtn" class="accent" type="button" disabled>開始本機模擬</button></div>
+          <div class="fault-sim-formula"><code>FC(model) = detected instances / injected instances × 100%</code><a href="https://doi.org/10.1109/43.992771" target="_blank" rel="noopener">Wu et al., TCAD 2002 ↗</a></div>
+          <div class="fault-sim-meta"><span>目前設定</span><strong id="coverageConfigLabel"></strong></div>
+          <div class="simulation-options">
+            <label><span>Coupling relation</span><select id="couplingRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label>
+            <label><span>Instance limit / fault</span><input id="maxInstances" type="number" min="1000" max="2000000" step="1000" value="250000"></label>
+          </div>
+          <div class="descriptor-section">
+            <div class="descriptor-heading"><div><span>FAULT DESCRIPTORS</span><strong>AGR · VTM · trigger · effect</strong></div><small>勾選要注入的 fault；點卡片查看實際 descriptor。</small></div>
+            <div id="descriptorGrid" class="descriptor-grid"><p class="descriptor-empty">等待本機引擎提供 descriptors…</p></div>
+            <details class="descriptor-editor">
+              <summary>新增或覆寫自訂 Fault Descriptor</summary>
+              <p>Descriptor 儲存在本機 <code>local_engine/user_descriptors.json</code>，不會上傳到網站。</p>
+              <textarea id="descriptorJson" spellcheck="false" aria-label="Custom fault descriptor JSON"></textarea>
+              <div><button id="descriptorTemplateBtn" type="button">載入範本</button><button id="descriptorSaveBtn" class="accent" type="button">儲存到本機</button><span id="descriptorSaveStatus"></span></div>
+            </details>
+          </div>
+          <div class="fault-sim-table-wrap">
+            <table class="fault-sim-table">
+              <thead><tr><th>Fault</th><th>Injected</th><th>Activated</th><th>Detected</th><th>Undetected</th><th>Coverage</th><th>First detection</th></tr></thead>
+              <tbody id="faultCoverageRows"></tbody>
+            </table>
+          </div>
+          <div class="fault-sim-summary" id="faultCoverageSummary"></div>
+          <div id="simulationMessage" class="simulation-message">尚未執行本機 fault simulation。</div>
+          <p class="coverage-note">Coverage 只採計可執行的 deterministic descriptors。沒有 occurrence model 的 TRDF／TWF 顯示 N/A，不以理論 mapping 冒充 instance coverage。</p>
+        </section>
         <section class="code-export" id="codeExport" aria-labelledby="verilogOutputTitle">
           <div class="code-collapse-bar">
             <div><p class="step">VERILOG OUTPUT</p><h3 id="verilogOutputTitle">Verilog 輸出</h3></div>
@@ -117,6 +149,6 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="app.js?v=2.5"></script>
+  <script src="app.js?v=2.7"></script>
 </body>
 </html>
