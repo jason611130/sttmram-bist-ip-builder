@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="在瀏覽器內搜尋 Custom March 並計算 STT-MRAM fault coverage。">
+  <title>STT-MRAM Fault Simulator</title>
+  <link rel="stylesheet" href="styles.css?v=2.11.0">
+</head>
+<body class="simulator-page">
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
+    <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.11</span></div>
+  </header>
+
+  <main class="sim-main">
+    <section class="sim-hero">
+      <div><p class="eyebrow">BROWSER-BASED FAULT SIMULATION</p><h1>Custom March 搜尋與 Fault Coverage</h1><p>計算直接在此網頁的背景執行緒完成，不需要 Python、localhost 或上傳 memory 資料。搜尋結果用 4×2 memory 排名；完整 coverage 則使用下方 datasheet geometry。</p></div>
+      <div class="worker-badge"><span></span><strong>Web Worker</strong><small>計算時 UI 仍可操作</small></div>
+    </section>
+
+    <section class="sim-grid">
+      <aside class="sim-controls">
+        <div class="panel-heading"><div><p class="step">01 / SEARCH SETTINGS</p><h2>搜尋設定</h2></div></div>
+        <fieldset><legend>Datasheet geometry</legend><div class="grid2"><label>Memory depth<input id="simDepth" type="number" min="2" max="65536" value="256"></label><label>Data width<input id="simWidth" type="number" min="2" max="1024" value="32"></label></div></fieldset>
+        <fieldset><legend>Custom March</legend><div class="grid2"><label>N budget<input id="simBudget" type="number" min="1" max="100" value="12"><small>精確使用 1–100N</small></label><label>Search attempts<input id="simAttempts" type="number" min="20" max="1000" step="20" value="60"><small>候選產生次數</small></label></div><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Instance limit / fault<input id="simLimit" type="number" min="1000" max="2000000" step="1000" value="250000"></label></fieldset>
+        <button id="searchBtn" class="primary" type="button">搜尋最佳 March <span>→</span></button>
+        <div id="workerStatus" class="worker-status"><i></i><span>瀏覽器計算核心已就緒</span></div>
+      </aside>
+
+      <section class="priority-panel">
+        <div class="panel-heading"><div><p class="step">02 / PRIORITY</p><h2>Fault Descriptors</h2></div><small>勾選要計算的 fault；越上方權重越高。</small></div>
+        <div id="faultPriorityList" class="priority-list"></div>
+      </section>
+
+      <section class="candidate-panel sim-wide">
+        <div class="panel-heading"><div><p class="step">03 / CANONICAL SEARCH</p><h2>候選演算法</h2></div><div id="candidateMeta" class="mini-meta">尚未搜尋</div></div>
+        <div id="candidateChart" class="candidate-chart"><p class="empty-state">設定 N 與 fault priority 後開始搜尋。</p></div>
+        <div id="candidateList" class="candidate-list"></div>
+      </section>
+
+      <section class="selected-panel sim-wide">
+        <div class="panel-heading"><div><p class="step">04 / SELECTED SEQUENCE</p><h2>完整 Detection sequence</h2></div><button id="useBuilderBtn" type="button" disabled>套用到 BIST Builder</button></div>
+        <div id="selectedSequence" class="selected-sequence"><p class="empty-state">選擇候選後，這裡會顯示完整執行序列。</p></div>
+        <div class="run-full"><div><strong>用 datasheet geometry 逐一注入並驗證</strong><small id="fullRunHint">請先選擇候選。</small></div><button id="simulateBtn" class="accent" type="button" disabled>計算完整 Fault Coverage</button></div>
+      </section>
+
+      <section class="coverage-results sim-wide">
+        <div class="coverage-result-head"><div><p class="step">05 / FULL GEOMETRY RESULT</p><h2>每一種 Fault 的 Coverage</h2><p>每張卡片是一個獨立 fault model 的長條圖；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>instance coverage</small></div></div>
+        <div id="faultChartGrid" class="fault-chart-grid"><p class="empty-state">完整模擬後，9 種 fault 會各自顯示一張長條圖。</p></div>
+        <div id="coverageFoot" class="coverage-foot"></div>
+      </section>
+    </section>
+  </main>
+  <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
+  <script src="fault-engine.js?v=2.11.0"></script>
+  <script src="fault-simulator.js?v=2.11.0"></script>
+</body>
+</html>
