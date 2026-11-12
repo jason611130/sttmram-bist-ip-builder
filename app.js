@@ -626,5 +626,5 @@ $("faultExpandBtn").onclick=()=>$("faultDialog").showModal();
 $("faultCloseBtn").onclick=()=>$("faultDialog").close();
 $("faultDialog").onclick=e=>{if(e.target===$("faultDialog"))$("faultDialog").close()};
 try{const saved=JSON.parse(localStorage.getItem("sttmram-bist-config"));if(saved)Object.entries(saved).forEach(([k,v])=>{const e=$(k);if(e)e.type==="checkbox"?e.checked=v:e.value=v})}catch{}
+if(customMarch&&localStorage.getItem("sttmram-custom-march-enabled")==="true")$("enableCustomMarch").checked=true;
 render();
-connectLocalEngine();
