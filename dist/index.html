@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.9" />
-  <link rel="stylesheet" href="help.css?v=2.9" />
+  <link rel="stylesheet" href="styles.css?v=2.10" />
+  <link rel="stylesheet" href="help.css?v=2.10" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.9</span></div>
+    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.10</span></div>
   </header>
 
   <main>
@@ -130,6 +130,7 @@
               <div><button id="descriptorTemplateBtn" type="button">載入範本</button><button id="descriptorSaveBtn" class="accent" type="button">儲存到本機</button><span id="descriptorSaveStatus"></span></div>
             </details>
           </div>
+          <div class="chart-panel"><div class="chart-heading"><div><span>FULL GEOMETRY RESULT</span><strong>Fault coverage chart</strong></div><div class="chart-legend"><i class="full"></i>Datasheet geometry <i class="na"></i>N/A</div></div><div id="faultCoverageChart" class="coverage-bar-chart"></div></div>
           <div class="fault-sim-table-wrap">
             <table class="fault-sim-table">
               <thead><tr><th>Fault</th><th>Injected</th><th>Activated</th><th>Detected</th><th>Undetected</th><th>Coverage</th><th>First detection</th></tr></thead>
@@ -160,6 +161,6 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="app.js?v=2.9"></script>
+  <script src="app.js?v=2.10"></script>
 </body>
 </html>
