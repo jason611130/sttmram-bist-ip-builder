@@ -194,3 +194,6 @@ footer{font-family:var(--sans)}
 /* v2.18: Custom March controls live with the step 03 result. */
 .coverage-search-controls{padding:14px 0 4px;margin:0 0 9px}.coverage-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.coverage-control-grid label{margin:0;padding:8px;border:1px solid #343c45;border-radius:6px;background:#1d2227;font-size:9px}.coverage-control-grid input,.coverage-control-grid select{padding:8px;font-size:10px}.coverage-control-grid small{color:#77818c;font-size:7px}.coverage-search-button{margin:0;padding:11px 13px;font-size:11px}.coverage-results .worker-status{margin:7px 0 10px;padding:8px;font-size:8px}
 @media(max-width:620px){.coverage-control-grid{grid-template-columns:1fr}}
+
+/* v2.19: draggable fault priority ordering. */
+.priority-item .drag-handle{cursor:grab;color:#9eb4ca;font-size:15px;line-height:1}.priority-item .drag-handle:active{cursor:grabbing}.priority-item.dragging{opacity:.38}.priority-item.drop-before{box-shadow:0 -3px 0 #7d9fc9}.priority-item.drop-after{box-shadow:0 3px 0 #7d9fc9}.priority-item[draggable="true"]{-webkit-user-select:none;user-select:none}
