@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內搜尋 Custom March 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.17.0">
+  <link rel="stylesheet" href="styles.css?v=2.18.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.17</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.18</span></div>
   </header>
 
   <main class="sim-main">
@@ -22,11 +22,8 @@
 
     <section class="sim-grid">
       <aside class="sim-controls">
-        <div class="panel-heading"><div><p class="step">01 / SEARCH SETTINGS</p><h2>搜尋設定</h2></div></div>
+        <div class="panel-heading"><div><p class="step">01 / MEMORY SETTINGS</p><h2>Memory 設定</h2></div></div>
         <fieldset><legend>Datasheet geometry</legend><div class="grid2"><label>Memory depth<input id="simDepth" type="number" min="2" max="65536" value="256"></label><label>Data width<input id="simWidth" type="number" min="2" max="1024" value="32"></label></div></fieldset>
-        <fieldset><legend>Custom March</legend><div class="grid2"><label>N budget<input id="simBudget" type="number" min="1" max="100" value="12"><small>精確使用 1–100N</small></label><label>Search attempts<input id="simAttempts" type="number" min="20" max="1000" step="20" value="60"><small>候選產生次數</small></label></div><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Instance limit / fault<input id="simLimit" type="number" min="1000" max="2000000" step="1000" value="250000"></label></fieldset>
-        <button id="searchBtn" class="primary" type="button">搜尋最佳 March <span>→</span></button>
-        <div id="workerStatus" class="worker-status"><i></i><span>瀏覽器計算核心已就緒</span></div>
       </aside>
 
       <section class="priority-panel">
@@ -37,6 +34,9 @@
       <div class="result-pair sim-wide">
       <section class="coverage-results">
         <div class="coverage-result-head"><div><p class="step">03 / FULL GEOMETRY RESULT</p><h2>Fault Coverage 總覽</h2><p>搜尋最佳 March 後自動用 datasheet geometry 更新；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>instance coverage</small></div></div>
+        <fieldset class="coverage-search-controls"><legend>Custom March</legend><div class="coverage-control-grid"><label>N budget<input id="simBudget" type="number" min="1" max="100" value="12"><small>精確使用 1–100N</small></label><label>Search attempts<input id="simAttempts" type="number" min="20" max="1000" step="20" value="60"><small>候選產生次數</small></label><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Instance limit / fault<input id="simLimit" type="number" min="1000" max="2000000" step="1000" value="250000"></label></div></fieldset>
+        <button id="searchBtn" class="primary coverage-search-button" type="button">搜尋最佳 March <span>→</span></button>
+        <div id="workerStatus" class="worker-status"><i></i><span>瀏覽器計算核心已就緒</span></div>
         <div id="faultChartGrid" class="fault-chart-grid"><p class="empty-state">按「搜尋最佳 March」後，coverage 會自動顯示在這裡。</p></div>
         <div id="coverageFoot" class="coverage-foot"></div>
       </section>
@@ -55,7 +55,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.17.0"></script>
-  <script src="fault-simulator.js?v=2.17.0"></script>
+  <script src="fault-engine.js?v=2.18.0"></script>
+  <script src="fault-simulator.js?v=2.18.0"></script>
 </body>
 </html>
