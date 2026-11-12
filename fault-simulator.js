@@ -2,15 +2,30 @@ const $=id=>document.getElementById(id);
 const descriptors=FaultEngine.descriptors;
 let priority=descriptors.map(x=>x.id),selected=new Set(priority),synthesis=null,chosen=null,requestId=0;
 const pending=new Map();
-const worker=new Worker("fault-worker.js?v=2.18.0");
+const worker=new Worker("fault-worker.js?v=2.20.0");
 worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.ok?p.resolve(data.result):p.reject(new Error(data.error))};
 worker.onerror=error=>setStatus(`Worker 錯誤：${error.message}`,"error");
 function callWorker(type,payload){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload})})}
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=n=>Number(n||0).toLocaleString();
 function setStatus(text,state="ready"){$("workerStatus").className=`worker-status ${state}`;$('workerStatus').querySelector("span").textContent=text}
-function saveSettings(){localStorage.setItem("sttmram-simulator-settings",JSON.stringify({depth:+$("simDepth").value,width:+$("simWidth").value,budget:+$("simBudget").value,attempts:+$("simAttempts").value,relation:$("simRelation").value,limit:+$("simLimit").value,priority,selected:[...selected]}))}
-function loadSettings(){try{const s=JSON.parse(localStorage.getItem("sttmram-simulator-settings"));if(!s)return;$("simDepth").value=s.depth||256;$("simWidth").value=s.width||32;$("simBudget").value=s.budget||12;$("simAttempts").value=s.attempts||60;$("simRelation").value=s.relation||"same_word_adjacent";$("simLimit").value=s.limit||250000;if(Array.isArray(s.priority))priority=[...s.priority.filter(id=>descriptors.some(d=>d.id===id)),...descriptors.map(d=>d.id).filter(id=>!s.priority.includes(id))];if(Array.isArray(s.selected))selected=new Set(s.selected)}catch{}}
+function saveSettings(){localStorage.setItem("sttmram-simulator-settings",JSON.stringify({depth:+$("simDepth").value,width:+$("simWidth").value,budget:+$("simBudget").value,attempts:+$("simAttempts").value,relation:$("simRelation").value,priority,selected:[...selected]}))}
+function loadSettings(){try{const s=JSON.parse(localStorage.getItem("sttmram-simulator-settings"));if(!s)return;$("simDepth").value=s.depth||256;$("simWidth").value=s.width||32;$("simBudget").value=s.budget||12;$("simAttempts").value=s.attempts||60;$("simRelation").value=s.relation||"same_word_adjacent";if(Array.isArray(s.priority))priority=[...s.priority.filter(id=>descriptors.some(d=>d.id===id)),...descriptors.map(d=>d.id).filter(id=>!s.priority.includes(id))];if(Array.isArray(s.selected))selected=new Set(s.selected)}catch{}}
+function descriptorInstances(d,depth,width,relation){
+  if(!d.supported)return 0;
+  const activeRelation=d.relation!=="single"?relation:"single";
+  const maps=activeRelation==="single"?depth*width:activeRelation==="same_word_adjacent"?depth*Math.max(0,width-1)*2:Math.max(0,depth-1)*width*2;
+  return maps*(d.variants?.length||1);
+}
+function updateAutoLimit(){
+  const depth=Number($("simDepth").value),width=Number($("simWidth").value),relation=$("simRelation").value;
+  if(!Number.isInteger(depth)||depth<2||!Number.isInteger(width)||width<2){$("simLimit").value=1;$("simLimitNote").textContent="請先輸入有效的 Memory geometry";return 1}
+  const counts=priority.filter(id=>selected.has(id)).map(id=>{const d=descriptors.find(x=>x.id===id);return {id,count:descriptorInstances(d,depth,width,relation)}});
+  const largest=counts.reduce((best,x)=>x.count>best.count?x:best,{id:"—",count:1});
+  $("simLimit").value=largest.count;
+  $("simLimitNote").textContent=`${largest.id} 最大需求；依 ${depth.toLocaleString()} × ${width.toLocaleString()} 自動計算`;
+  return largest.count;
+}
 function renderPriority(){
   $("faultPriorityList").innerHTML=priority.map((id,index)=>{const d=descriptors.find(x=>x.id===id);return `<article class="priority-item ${selected.has(id)?"selected":""}" data-priority-item="${id}"><label><input type="checkbox" data-fault="${id}" ${selected.has(id)?"checked":""}><span><strong>${esc(id)} · ${esc(d.name)}</strong><small>${esc(d.description)}</small></span></label><div><button type="button" class="drag-handle" data-drag-id="${id}" aria-label="拖曳 ${id} 改變優先序" title="拖曳改變順序">⠿</button><button data-move="up" data-id="${id}" ${index===0?"disabled":""} aria-label="提高 ${id} 優先序">↑</button><button data-move="down" data-id="${id}" ${index===priority.length-1?"disabled":""} aria-label="降低 ${id} 優先序">↓</button></div></article>`}).join("");
   $("faultPriorityList").querySelectorAll("input").forEach(input=>input.onchange=()=>{input.checked?selected.add(input.dataset.fault):selected.delete(input.dataset.fault);saveSettings();renderPriority()});
@@ -30,8 +45,9 @@ function renderPriority(){
     item.ondrop=event=>{event.preventDefault();if(!draggedId||draggedId===item.dataset.priorityItem)return;const from=priority.indexOf(draggedId),target=priority.indexOf(item.dataset.priorityItem),after=event.clientY>item.getBoundingClientRect().top+item.offsetHeight/2;priority.splice(from,1);let to=priority.indexOf(item.dataset.priorityItem)+(after?1:0);priority.splice(to,0,draggedId);saveSettings();renderPriority()};
     item.ondragend=()=>{item.draggable=false;delete item.dataset.dragArmed;draggedId=null;clearDrag()};
   });
+  updateAutoLimit();
 }
-function validate(){const depth=+$('simDepth').value,width=+$('simWidth').value,budget=+$('simBudget').value,attempts=+$('simAttempts').value,limit=+$('simLimit').value;if(!Number.isInteger(depth)||depth<2||depth>65536)throw new Error("Memory depth 必須為 2–65536");if(!Number.isInteger(width)||width<2||width>1024)throw new Error("Data width 必須為 2–1024");if(!Number.isInteger(budget)||budget<1||budget>100)throw new Error("N budget 必須為 1–100");if(!Number.isInteger(attempts)||attempts<20||attempts>1000)throw new Error("Search attempts 必須為 20–1000");if(!Number.isInteger(limit)||limit<1000)throw new Error("Instance limit 至少為 1,000");const faults=priority.filter(id=>selected.has(id));if(!faults.length)throw new Error("至少選擇一種 fault");return {depth,width,budget,attempts,limit,faults,relation:$('simRelation').value}}
+function validate(){const depth=+$('simDepth').value,width=+$('simWidth').value,budget=+$('simBudget').value,attempts=+$('simAttempts').value;if(!Number.isInteger(depth)||depth<2||depth>65536)throw new Error("Memory depth 必須為 2–65536");if(!Number.isInteger(width)||width<2||width>1024)throw new Error("Data width 必須為 2–1024");if(!Number.isInteger(budget)||budget<1||budget>100)throw new Error("N budget 必須為 1–100");if(!Number.isInteger(attempts)||attempts<20||attempts>1000)throw new Error("Search attempts 必須為 20–1000");const faults=priority.filter(id=>selected.has(id));if(!faults.length)throw new Error("至少選擇一種 fault");const limit=updateAutoLimit();return {depth,width,budget,attempts,limit,faults,relation:$('simRelation').value}}
 const opText=op=>`${op.kind}${op.pattern}`;
 function sequenceText(elements){return elements.map((e,i)=>`M${i} ${e.direction==="down"?"⇓":"⇑"} (${e.operations.map(opText).join(", ")})`).join("; ")}
 function renderCandidates(){
@@ -51,4 +67,4 @@ function renderFaultCards(result){
 }
 async function simulate(auto=false){try{const c=validate();setBusy(true,`正在 ${c.depth} × ${c.width} geometry 注入 fault instances…`);const result=await callWorker("simulate",{memory:{depth:c.depth,dataWidth:c.width},algorithm:chosen.name,operationComplexity:`${chosen.usedN}N`,sequence:chosen.elements,faults:c.faults,couplingRelation:c.relation,maxInstances:c.limit});renderFaultCards(result);setStatus(`搜尋與完整模擬完成：${fmt(result.summary.detected)} / ${fmt(result.summary.injected)} instances detected`,"done");if(!auto)$("faultChartGrid").scrollIntoView({behavior:"smooth",block:"start"})}catch(error){setStatus(error.message,"error");if(auto)throw error}finally{setBusy(false,"")}}
 function useInBuilder(){if(!chosen)return;localStorage.setItem("sttmram-custom-march",JSON.stringify(chosen));localStorage.setItem("sttmram-custom-march-enabled","true");setStatus(`${chosen.name} 已儲存，正在開啟 BIST Builder…`,"done");setTimeout(()=>location.href="index.html?custom=1",350)}
-loadSettings();renderPriority();$("searchBtn").onclick=search;$("simulateBtn").onclick=simulate;$("useBuilderBtn").onclick=useInBuilder;document.querySelectorAll("input,select").forEach(x=>x.addEventListener("change",saveSettings));
+loadSettings();renderPriority();$("searchBtn").onclick=search;$("simulateBtn").onclick=simulate;$("useBuilderBtn").onclick=useInBuilder;[$("simDepth"),$("simWidth")].forEach(x=>x.addEventListener("input",updateAutoLimit));document.querySelectorAll("input,select").forEach(x=>x.addEventListener("change",()=>{updateAutoLimit();saveSettings()}));

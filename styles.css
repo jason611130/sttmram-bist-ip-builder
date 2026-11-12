@@ -197,3 +197,6 @@ footer{font-family:var(--sans)}
 
 /* v2.19: draggable fault priority ordering. */
 .priority-item .drag-handle{cursor:grab;color:#9eb4ca;font-size:15px;line-height:1}.priority-item .drag-handle:active{cursor:grabbing}.priority-item.dragging{opacity:.38}.priority-item.drop-before{box-shadow:0 -3px 0 #7d9fc9}.priority-item.drop-after{box-shadow:0 3px 0 #7d9fc9}.priority-item[draggable="true"]{-webkit-user-select:none;user-select:none}
+
+/* v2.20: geometry-driven fault instance maximum. */
+#simLimit[readonly]{cursor:default;color:#a9c9e8;background:#171c21;border-color:#425467;font-variant-numeric:tabular-nums}
