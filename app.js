@@ -1,9 +1,11 @@
 const $ = (id) => document.getElementById(id);
-const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","repeatWom26","repeatDirf14","repeatMarchC","repeatMarchCM","paperLiteral","optimizeSequence","readLatency","writeLatency","useReady"];
-const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,repeatWom26:1,repeatDirf14:1,repeatMarchC:1,repeatMarchCM:1,paperLiteral:false,optimizeSequence:true,readLatency:1,writeLatency:1,useReady:false};
+const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","repeatWom26","repeatDirf14","repeatMarchC","repeatMarchCM","paperLiteral","optimizeSequence","synthBudget","synthAttempts","enableCustomMarch","readLatency","writeLatency","useReady"];
+const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,repeatWom26:1,repeatDirf14:1,repeatMarchC:1,repeatMarchCM:1,paperLiteral:false,optimizeSequence:true,synthBudget:10,synthAttempts:200,enableCustomMarch:false,readLatency:1,writeLatency:1,useReady:false};
 let files = {}, activeFile = "core", selectedFaultId = null, faultCardHtmlById = {};
 let activeFaultCoverageKey = "", activeFaultCoverageLabel = "";
 let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = [], simulationResult = null, engineOnline = false;
+let synthesisResult = null, customMarch = null;
+try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
 
 const faultUniverse = [
   {id:"SAF",name:"Stuck-at fault",type:"永久",description:"Cell 永久固定為 0 或 1，任何 write 都無法改變其狀態。",roles:["VTM"],relation:"single",supported:true},
@@ -57,6 +59,7 @@ function selectedAlgorithms(c){
   if(c.algoMarchCM) list.push(repeatedMethod({id:"marchcm",baseName:"March CM 7N",baseShort:"March CM",count:7,faults:["SAF","TF","IRF"],deterministic:true,kind:"digital",elements:[
     {d:0,o:[["w","1"],["w","0"],["r","0"],["w","1"],["w","1"],["r","1"],["r","1"]]}
   ]},c.repeatMarchCM));
+  if(c.enableCustomMarch&&customMarch)list.push({id:"custom-synth",name:customMarch.name,short:`Custom ${customMarch.usedN}N`,count:customMarch.usedN,repeat:1,faults:Object.entries(customMarch.coverages||{}).filter(([,coverage])=>Number(coverage)>0).map(([id])=>id),deterministic:true,kind:"digital",elements:customMarch.elements.map(e=>({d:e.direction==="down"?1:0,o:e.operations.map(op=>[op.kind,op.pattern])}))});
   return list;
 }
 
@@ -107,6 +110,9 @@ function validate(c){
   if(!Number.isInteger(c.depth)||c.depth<2)errors.push("Depth 必須是大於 1 的整數");
   if(!Number.isInteger(c.dataWidth)||c.dataWidth<2)errors.push("Data width 必須至少為 2");
   [c.repeatWom26,c.repeatDirf14,c.repeatMarchC,c.repeatMarchCM].forEach(value=>{if(!Number.isInteger(value)||value<1||value>20)errors.push("每個 March 演算法的執行次數必須為 1–20")});
+  if(!Number.isInteger(c.synthBudget)||c.synthBudget<1||c.synthBudget>100)errors.push("Custom March N 必須為 1–100")
+  if(!Number.isInteger(c.synthAttempts)||c.synthAttempts<20||c.synthAttempts>1000)errors.push("Search attempts 必須為 20–1000")
+  if(c.enableCustomMarch&&!customMarch)errors.push("請先搜尋並選定一個 Custom March 候選")
   if((1<<Math.min(c.addrWidth,30))<c.depth && c.addrWidth<=30)errors.push("Address width 無法涵蓋 depth");
   return errors;
 }
@@ -353,7 +359,7 @@ ${c.paperLiteral?"警告：目前使用論文原文 WOM sequence；其後半段�
 `}
 
 function faultCoverageKey(c,a){
-  return JSON.stringify({methods:a.methods.map(m=>[m.id,m.repeat]).sort(),optimized:c.optimizeSequence,paperLiteral:c.paperLiteral,depth:c.depth,dataWidth:c.dataWidth,addrWidth:c.addrWidth,priority:faultPriority.filter(id=>selectedDescriptorIds.has(id))});
+  return JSON.stringify({methods:a.methods.map(m=>[m.id,m.repeat,m.count,m.name]).sort(),optimized:c.optimizeSequence,paperLiteral:c.paperLiteral,depth:c.depth,dataWidth:c.dataWidth,addrWidth:c.addrWidth,priority:faultPriority.filter(id=>selectedDescriptorIds.has(id))});
 }
 
 function renderFaultCoverage(c,a){
@@ -423,6 +429,7 @@ async function connectLocalEngine(){
     $("engineStatus").textContent="本機 Fault Engine 已連線";
     $("engineHint").textContent=`${faultDescriptors.length} 個 descriptors 可用`;
     $("simulationRunBtn").disabled=false;
+    $("synthSearchBtn").disabled=false;
     renderDescriptorGrid();renderEmptySimulation();
   }catch{
     engineOnline=false;
@@ -430,6 +437,7 @@ async function connectLocalEngine(){
     $("engineStatus").textContent="本機 Fault Engine 未連線";
     $("engineHint").textContent="執行 python local_engine/server.py，再重新整理此頁";
     $("simulationRunBtn").disabled=true;
+    $("synthSearchBtn").disabled=true;
     renderDescriptorGrid();renderEmptySimulation();
   }
 }
@@ -449,10 +457,46 @@ async function runLocalSimulation(){
   finally{button.disabled=!engineOnline;button.textContent="開始本機模擬"}
 }
 
+function synthSequenceText(elements){
+  return elements.map((element,index)=>{const dir=element.direction==="down"?"↓":"↑";const ops=[];element.operations.forEach(op=>{const key=`${op.kind}${op.pattern}`,last=ops[ops.length-1];if(last&&last.key===key)last.count++;else ops.push({key,count:1})});return `M${index} ${dir} (${ops.map(op=>`${op.key}${op.count>1?`×${op.count}`:""}`).join(", ")})`}).join("; ");
+}
+function renderSynthesisResults(){
+  if(!synthesisResult){$("synthesisResults").innerHTML="";return}
+  $("customMarchStatus").textContent=`已評估 ${synthesisResult.evaluatedCandidates} 個候選 · ${Number(synthesisResult.elapsedSeconds).toFixed(3)} s`;
+  $("synthesisResults").innerHTML=synthesisResult.candidates.map((candidate,index)=>{
+    const coverage=Object.entries(candidate.coverages).map(([id,value])=>`<span>${escapeHtml(id)} ${value==null?"N/A":`${Number(value).toFixed(0)}%`}</span>`).join("");
+    return `<article class="synth-candidate ${index===0?"best":""}"><div class="synth-rank"><span>RANK ${index+1}</span><strong>${Number(candidate.score).toFixed(1)}</strong></div><div class="synth-info"><strong>${escapeHtml(candidate.name)}</strong><small>${candidate.usedN}N · ${candidate.elements.length} elements · canonical weighted score</small><div class="synth-coverages">${coverage}</div><div class="synth-sequence">${escapeHtml(synthSequenceText(candidate.elements))}</div></div><button type="button" data-use-candidate="${index}">${customMarch&&JSON.stringify(customMarch.elements)===JSON.stringify(candidate.elements)?"已選定":"使用此候選"}</button></article>`;
+  }).join("");
+}
+async function runSynthesis(){
+  if(!engineOnline)return;
+  const budget=Number($("synthBudget").value),attempts=Number($("synthAttempts").value);
+  if(!Number.isInteger(budget)||budget<1||budget>100){$("customMarchStatus").textContent="N budget 必須為 1–100";return}
+  if(!Number.isInteger(attempts)||attempts<20||attempts>1000){$("customMarchStatus").textContent="Search attempts 必須為 20–1000";return}
+  const faults=faultPriority.filter(id=>selectedDescriptorIds.has(id));
+  if(!faults.length){$("customMarchStatus").textContent="請先選擇至少一個 Fault Descriptor";return}
+  const button=$("synthSearchBtn");button.disabled=true;button.textContent="搜尋中…";$("customMarchStatus").textContent=`正在搜尋 ${budget}N sequence…`;
+  try{
+    const response=await fetch("/api/synthesize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({budgetN:budget,attempts,faults,seed:611130})});
+    const result=await response.json();if(!response.ok)throw new Error(result.error||"Synthesis failed");synthesisResult=result;renderSynthesisResults();
+  }catch(error){$("customMarchStatus").textContent=`搜尋失敗：${error.message}`}
+  finally{button.disabled=!engineOnline;button.textContent="搜尋最佳 March"}
+}
+function useSynthesisCandidate(index){
+  const candidate=synthesisResult?.candidates?.[index];if(!candidate)return;
+  customMarch={...candidate,name:`Custom March ${candidate.usedN}N（自動搜尋）`};
+  localStorage.setItem("sttmram-custom-march",JSON.stringify(customMarch));
+  $("enableCustomMarch").disabled=false;$("enableCustomMarch").checked=true;
+  $("customMarchStatus").textContent=`已選定 ${customMarch.name} · score ${Number(customMarch.score).toFixed(1)}`;
+  renderSynthesisResults();render();
+}
+
 function render(){
   const c=readConfig(),a=algorithm(c),errors=validate(c);
   $("addrWidth").disabled=c.autoAddr;
   $("paperLiteral").disabled=!c.algoWom26;
+  $("enableCustomMarch").disabled=!customMarch;
+  if(customMarch&&!synthesisResult)$("customMarchStatus").textContent=`已保存 ${customMarch.name} · score ${Number(customMarch.score).toFixed(1)}`;
   [["repeatWom26",c.algoWom26],["repeatDirf14",c.algoDirf14],["repeatMarchC",c.algoMarchC],["repeatMarchCM",c.algoMarchCM]].forEach(([id,enabled])=>$(id).disabled=!enabled);
   $("algoNote").className="note"+(c.paperLiteral&&c.algoWom26?" warn":"");
   $("algoNote").textContent=c.paperLiteral&&c.algoWom26?"警告：論文後半段的起始 expected pattern 與前一 element 結束狀態不一致。":`${a.methods.length} 個數位方法已選；${a.optimized?`已從 ${a.baseCount}N 壓縮為 ${a.count}N。`:`March 複雜度 ${a.count}N。`}`;
@@ -563,6 +607,8 @@ $("downloadBtn").onclick=()=>download(files[activeFile].name,files[activeFile].t
 $("downloadAllBtn").onclick=()=>Object.values(files).forEach((f,i)=>setTimeout(()=>download(f.name,f.text),i*180));
 $("coverageCsvBtn").onclick=()=>download("sttmram_fault_coverage.csv",faultCoverageCsv());
 $("simulationRunBtn").onclick=runLocalSimulation;
+$("synthSearchBtn").onclick=runSynthesis;
+$("synthesisResults").onclick=e=>{const button=e.target.closest("button[data-use-candidate]");if(button)useSynthesisCandidate(Number(button.dataset.useCandidate))};
 function markSimulationStale(){if(!simulationResult)return;$("simulationMessage").textContent="模擬設定已變更；請重新執行本機計算。";$("simulationMessage").className="simulation-message warn"}
 $("descriptorGrid").onchange=e=>{const input=e.target.closest("input[data-descriptor-id]");if(!input)return;input.checked?selectedDescriptorIds.add(input.dataset.descriptorId):selectedDescriptorIds.delete(input.dataset.descriptorId);markSimulationStale();render()};
 $("descriptorGrid").onclick=e=>{const button=e.target.closest("button[data-priority-move]");if(!button)return;const index=faultPriority.indexOf(button.dataset.priorityId),next=button.dataset.priorityMove==="up"?index-1:index+1;if(index<0||next<0||next>=faultPriority.length)return;[faultPriority[index],faultPriority[next]]=[faultPriority[next],faultPriority[index]];renderDescriptorGrid();markSimulationStale();render()};
