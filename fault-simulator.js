@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const descriptors=FaultEngine.descriptors;
 let priority=descriptors.map(x=>x.id),selected=new Set(priority),synthesis=null,chosen=null,requestId=0;
 const pending=new Map();
-const worker=new Worker("fault-worker.js?v=2.12.0");
+const worker=new Worker("fault-worker.js?v=2.13.0");
 worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.ok?p.resolve(data.result):p.reject(new Error(data.error))};
 worker.onerror=error=>setStatus(`Worker 錯誤：${error.message}`,"error");
 function callWorker(type,payload){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload})})}
@@ -20,9 +20,7 @@ function validate(){const depth=+$('simDepth').value,width=+$('simWidth').value,
 const opText=op=>`${op.kind}${op.pattern}`;
 function sequenceText(elements){return elements.map((e,i)=>`M${i} ${e.direction==="down"?"⇓":"⇑"} (${e.operations.map(opText).join(", ")})`).join("; ")}
 function renderCandidates(){
-  const max=Math.max(...synthesis.candidates.map(x=>x.score),1);
   $("candidateMeta").textContent=`${synthesis.evaluatedCandidates} candidates · ${synthesis.elapsedSeconds.toFixed(3)} s`;
-  $("candidateChart").innerHTML=synthesis.candidates.map(c=>`<div class="candidate-bar"><label>#${c.rank}</label><div><span style="width:${c.score/max*100}%"></span></div><strong>${c.score.toFixed(1)}%</strong></div>`).join("");
   $("candidateList").innerHTML=synthesis.candidates.map(c=>`<article class="candidate-card ${chosen&&chosen.rank===c.rank?"chosen":""}"><div class="candidate-score"><small>WEIGHTED SCORE</small><strong>${c.score.toFixed(1)}%</strong></div><div><h3>${esc(c.name)}</h3><p>${esc(sequenceText(c.elements))}</p><div class="coverage-chips">${Object.entries(c.coverages).map(([id,v])=>`<span>${id} ${v==null?"N/A":`${Number(v).toFixed(0)}%`}</span>`).join("")}</div></div><button data-rank="${c.rank}" type="button">${chosen&&chosen.rank===c.rank?"已選擇":"選擇"}</button></article>`).join("");
   $("candidateList").querySelectorAll("button").forEach(button=>button.onclick=()=>chooseCandidate(Number(button.dataset.rank)));
 }
@@ -32,7 +30,7 @@ async function search(){try{const c=validate();saveSettings();setBusy(true,"正�
 function witnessText(w){return w?`${w.element} / ${w.operation} @ A${w.address}, B${w.bit}`:"尚無 detection witness"}
 function renderFaultCards(result){
   const colors={SAF:"#78a6d0",TF:"#8ab6a2",RDF:"#c99873",IRF:"#a996ce",CFwd:"#d29a9a",dIRF:"#7fb7bc",RTF:"#c3ad6e",TRDF:"#8d98a3",TWF:"#9b8f9d"};
-  $("faultChartGrid").innerHTML=`<div class="combined-chart-scale"><span>Fault model</span><span>0%</span><span>50%</span><span>100%</span><span>Coverage</span></div><div class="combined-chart-rows">${result.models.map(m=>{const value=m.coverage==null?null:Number(m.coverage),color=colors[m.id]||"#7899b7";return `<div class="combined-chart-row ${value==null?"na":""}" style="--fault-color:${color}" title="${esc(m.description)}"><div class="combined-chart-label"><strong>${esc(m.id)}</strong><small>${esc(m.name)}</small></div><div class="combined-chart-track" role="img" aria-label="${esc(m.id)} coverage ${value==null?"N/A":value+"%"}"><i></i><i></i><span style="width:${value==null?100:Math.max(0,Math.min(100,value))}%"></span></div><strong class="combined-chart-value">${value==null?"N/A":`${value.toFixed(2)}%`}</strong><small class="combined-chart-count">${value==null?esc(m.reason||"無 deterministic model"):`${fmt(m.detected)} / ${fmt(m.injected)} detected`}</small></div>`}).join("")}</div>`;
+  $("faultChartGrid").innerHTML=`<div class="vertical-chart"><div class="vertical-axis"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div class="vertical-plot">${result.models.map(m=>{const value=m.coverage==null?null:Number(m.coverage),color=colors[m.id]||"#7899b7";return `<div class="vertical-column ${value==null?"na":""}" style="--fault-color:${color}" title="${esc(m.description)}"><strong>${value==null?"N/A":`${value.toFixed(1)}%`}</strong><div class="vertical-bar" role="img" aria-label="${esc(m.id)} coverage ${value==null?"N/A":value+"%"}"><span style="height:${value==null?100:Math.max(0,Math.min(100,value))}%"></span></div><b>${esc(m.id)}</b><small>${value==null?"N/A":`${fmt(m.detected)}/${fmt(m.injected)}`}</small></div>`}).join("")}</div></div>`;
   const s=result.summary;$("coverageOverall").innerHTML=`<strong>${s.weightedCoverage==null?"—":`${s.weightedCoverage.toFixed(2)}%`}</strong><small>instance coverage</small>`;$("coverageFoot").innerHTML=`<span>${result.memory.depth} × ${result.memory.dataWidth}</span><span>${fmt(s.detected)} / ${fmt(s.injected)} detected</span><span>${result.elapsedSeconds.toFixed(3)} s</span><span>${s.executableModels} executable · ${s.unsupportedModels} N/A</span>`;
 }
 async function simulate(){try{const c=validate();setBusy(true,`正在 ${c.depth} × ${c.width} geometry 注入 fault instances…`);const result=await callWorker("simulate",{memory:{depth:c.depth,dataWidth:c.width},algorithm:chosen.name,operationComplexity:`${chosen.usedN}N`,sequence:chosen.elements,faults:c.faults,couplingRelation:c.relation,maxInstances:c.limit});renderFaultCards(result);setStatus(`完整模擬完成：${fmt(result.summary.detected)} / ${fmt(result.summary.injected)} instances detected`,"done");$("faultChartGrid").scrollIntoView({behavior:"smooth",block:"start"})}catch(error){setStatus(error.message,"error")}finally{setBusy(false,"")}}
