@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.7" />
-  <link rel="stylesheet" href="help.css?v=2.7" />
+  <link rel="stylesheet" href="styles.css?v=2.8" />
+  <link rel="stylesheet" href="help.css?v=2.8" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.7</span></div>
+    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.8</span></div>
   </header>
 
   <main>
@@ -34,10 +34,10 @@
       <section class="algorithms-panel" aria-labelledby="algorithmsTitle">
         <h2 id="algorithmsTitle" class="section-title">Test algorithms（可複選）</h2>
         <div class="algorithm-picker">
-          <label class="algo-card recommended"><input id="algoWom26" type="checkbox" checked /><span class="algo-copy"><strong>WOM March 26N</strong><small>SAF · TF · RDF · IRF · CFwd</small><a class="paper-link" href="https://doi.org/10.1109/TEST.2016.7805834" target="_blank" rel="noopener" onclick="event.stopPropagation()">Yoon et al., EMACS 2016 ↗</a></span><span class="algo-kind digital">Digital</span></label>
-          <label class="algo-card"><input id="algoDirf14" type="checkbox" /><span class="algo-copy"><strong>dIRF March 14N</strong><small>dIRF（連續讀取觸發）</small><a class="paper-link" href="https://doi.org/10.1109/TEST.2018.8624725" target="_blank" rel="noopener" onclick="event.stopPropagation()">Nair et al., ITC 2018 ↗</a></span><span class="algo-kind digital">Digital</span></label>
-          <label class="algo-card"><input id="algoMarchC" type="checkbox" /><span class="algo-copy"><strong>March C− 10N</strong><small>SAF · TF 基礎檢查</small><a class="paper-link" href="https://doi.org/10.1109/54.199799" target="_blank" rel="noopener" onclick="event.stopPropagation()">van de Goor, 1993 ↗</a></span><span class="algo-kind digital">Digital</span></label>
-          <label class="algo-card new-method"><input id="algoMarchCM" type="checkbox" /><span class="algo-copy"><strong>March CM 7N</strong><small>SAF · TF · IRF；部分 W1DF／dR1DFU 不計入完整 dIRF coverage</small><a class="paper-link" href="https://mc.spacejournal.cn/article/doi/10.19304/J.ISSN1000-7180.2022.0385" target="_blank" rel="noopener" onclick="event.stopPropagation()">Yang et al., 2023 ↗</a></span><span class="algo-kind digital">Digital</span></label>
+          <label class="algo-card recommended"><input id="algoWom26" type="checkbox" checked /><span class="algo-copy"><strong>WOM March 26N</strong><small>SAF · TF · RDF · IRF · CFwd</small><a class="paper-link" href="https://doi.org/10.1109/TEST.2016.7805834" target="_blank" rel="noopener" onclick="event.stopPropagation()">Yoon et al., EMACS 2016 ↗</a></span><span class="algo-repeat" onclick="event.stopPropagation()"><small>次數</small><input id="repeatWom26" type="number" min="1" max="20" value="1" aria-label="WOM March 執行次數"></span><span class="algo-kind digital">Digital</span></label>
+          <label class="algo-card"><input id="algoDirf14" type="checkbox" /><span class="algo-copy"><strong>dIRF March 14N</strong><small>dIRF（連續讀取觸發）</small><a class="paper-link" href="https://doi.org/10.1109/TEST.2018.8624725" target="_blank" rel="noopener" onclick="event.stopPropagation()">Nair et al., ITC 2018 ↗</a></span><span class="algo-repeat" onclick="event.stopPropagation()"><small>次數</small><input id="repeatDirf14" type="number" min="1" max="20" value="1" aria-label="dIRF March 執行次數"></span><span class="algo-kind digital">Digital</span></label>
+          <label class="algo-card"><input id="algoMarchC" type="checkbox" /><span class="algo-copy"><strong>March C− 10N</strong><small>SAF · TF 基礎檢查</small><a class="paper-link" href="https://doi.org/10.1109/54.199799" target="_blank" rel="noopener" onclick="event.stopPropagation()">van de Goor, 1993 ↗</a></span><span class="algo-repeat" onclick="event.stopPropagation()"><small>次數</small><input id="repeatMarchC" type="number" min="1" max="20" value="1" aria-label="March C minus 執行次數"></span><span class="algo-kind digital">Digital</span></label>
+          <label class="algo-card new-method"><input id="algoMarchCM" type="checkbox" /><span class="algo-copy"><strong>March CM 7N</strong><small>SAF · TF · IRF；部分 W1DF／dR1DFU 不計入完整 dIRF coverage</small><a class="paper-link" href="https://mc.spacejournal.cn/article/doi/10.19304/J.ISSN1000-7180.2022.0385" target="_blank" rel="noopener" onclick="event.stopPropagation()">Yang et al., 2023 ↗</a></span><span class="algo-repeat" onclick="event.stopPropagation()"><small>次數</small><input id="repeatMarchCM" type="number" min="1" max="20" value="1" aria-label="March CM 執行次數"></span><span class="algo-kind digital">Digital</span></label>
         </div>
         <div class="algorithm-options">
           <label class="check compact"><input id="paperLiteral" type="checkbox" /><span>WOM 使用論文原文 sequence（會顯示一致性警告）</span></label>
@@ -110,7 +110,7 @@
             <label><span>Instance limit / fault</span><input id="maxInstances" type="number" min="1000" max="2000000" step="1000" value="250000"></label>
           </div>
           <div class="descriptor-section">
-            <div class="descriptor-heading"><div><span>FAULT DESCRIPTORS</span><strong>AGR · VTM · trigger · effect</strong></div><small>勾選要注入的 fault；點卡片查看實際 descriptor。</small></div>
+            <div class="descriptor-heading"><div><span>FAULT PRIORITY & DESCRIPTORS</span><strong>選擇與排列優先順序</strong></div><small>優先序會決定注入、計算與結果顯示順序；description 永遠顯示。</small></div>
             <div id="descriptorGrid" class="descriptor-grid"><p class="descriptor-empty">等待本機引擎提供 descriptors…</p></div>
             <details class="descriptor-editor">
               <summary>新增或覆寫自訂 Fault Descriptor</summary>
@@ -149,6 +149,6 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="app.js?v=2.7"></script>
+  <script src="app.js?v=2.8"></script>
 </body>
 </html>

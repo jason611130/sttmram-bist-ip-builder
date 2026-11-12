@@ -294,16 +294,19 @@ def run_simulation(request: Dict[str, Any], descriptors: List[Dict[str, Any]]) -
     if not elements:
         raise ValueError("At least one sequence element is required")
     max_instances = int(request.get("maxInstances", 250000))
-    selected = set(request.get("faults") or [item["id"] for item in descriptors])
+    selected_order = request.get("faults") or [item["id"] for item in descriptors]
+    descriptor_by_id = {item["id"]: item for item in descriptors}
     relation = request.get("couplingRelation", "same_word_adjacent")
 
     results = []
-    for descriptor in descriptors:
+    for descriptor_id in selected_order:
+        descriptor = descriptor_by_id.get(descriptor_id)
+        if descriptor is None:
+            raise ValueError(f"Unknown fault descriptor: {descriptor_id}")
         validate_descriptor(descriptor)
-        if descriptor["id"] in selected:
-            results.append(simulate_descriptor(
-                descriptor, depth, width, elements, relation, max_instances
-            ))
+        results.append(simulate_descriptor(
+            descriptor, depth, width, elements, relation, max_instances
+        ))
 
     injected = sum(item["injected"] for item in results if item["status"] == "complete")
     detected = sum(item["detected"] for item in results if item["status"] == "complete")

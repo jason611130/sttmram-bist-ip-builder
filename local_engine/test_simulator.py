@@ -63,6 +63,10 @@ class SimulatorTests(unittest.TestCase):
         self.assertTrue(all(item["status"] == "unsupported" for item in result["models"]))
         self.assertIsNone(result["summary"]["weightedCoverage"])
 
+    def test_requested_fault_priority_controls_result_order(self):
+        result = run_simulation(self.request(["TF", "SAF"]), load_descriptors(ROOT))
+        self.assertEqual([item["id"] for item in result["models"]], ["TF", "SAF"])
+
 
 if __name__ == "__main__":
     unittest.main()
