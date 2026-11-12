@@ -386,6 +386,7 @@ function renderEmptySimulation(){
   const source=faultDescriptors.length?faultDescriptors:faultUniverse;
   $("faultCoverageRows").innerHTML=source.map(f=>`<tr><td><span class="fault-code">${escapeHtml(f.id)}</span><br><small>${escapeHtml(f.name)}</small></td><td colspan="6" class="not-run">尚未由本機引擎計算</td></tr>`).join("");
   $("faultCoverageSummary").innerHTML=`<div><span>Total injected</span><strong>—</strong></div><div><span>Total detected</span><strong>—</strong></div><div><span>Weighted coverage</span><strong>—</strong></div><div><span>Engine</span><strong>${engineOnline?"Ready":"Offline"}</strong></div>`;
+  $("faultCoverageChart").innerHTML='<p class="bar-note">執行本機 fault simulation 後顯示各 fault coverage。</p>';
 }
 
 function renderDescriptorGrid(){
@@ -408,6 +409,7 @@ function renderSimulationResult(result){
   }).join("");
   const s=result.summary;
   $("faultCoverageSummary").innerHTML=`<div><span>Total injected</span><strong>${Number(s.injected).toLocaleString()}</strong></div><div><span>Total detected</span><strong>${Number(s.detected).toLocaleString()}</strong></div><div><span>Weighted coverage</span><strong>${s.weightedCoverage==null?"N/A":`${Number(s.weightedCoverage).toFixed(2)}%`}</strong></div><div><span>Runtime</span><strong>${Number(result.elapsedSeconds).toFixed(3)} s</strong></div>`;
+  $("faultCoverageChart").innerHTML=result.models.map(item=>{const value=item.coverage==null?null:Number(item.coverage);return `<div class="bar-row"><label title="${escapeHtml(item.name)}">${escapeHtml(item.id)}</label><div class="bar-track"><div class="bar-fill ${value==null?"na":""}" style="width:${value==null?100:Math.max(0,Math.min(100,value))}%"></div></div><strong>${value==null?"N/A":`${value.toFixed(1)}%`}</strong></div>`}).join("");
   $("simulationMessage").textContent=`本機計算完成 · ${result.models.length} 個 fault models · 結果已保存：${result.resultFile||"local engine"}`;
   $("simulationMessage").className="simulation-message ok";
 }
@@ -463,7 +465,8 @@ function synthSequenceText(elements){
 function renderSynthesisResults(){
   if(!synthesisResult){$("synthesisResults").innerHTML="";return}
   $("customMarchStatus").textContent=`已評估 ${synthesisResult.evaluatedCandidates} 個候選 · ${Number(synthesisResult.elapsedSeconds).toFixed(3)} s`;
-  $("synthesisResults").innerHTML=synthesisResult.candidates.map((candidate,index)=>{
+  const chart=`<div class="synthesis-chart"><div class="chart-heading"><div><span>CANONICAL SEARCH SCORE</span><strong>Top candidate comparison</strong></div><div class="chart-legend"><i></i>Weighted score</div></div><div class="candidate-bars">${synthesisResult.candidates.map((candidate,index)=>`<div class="bar-row"><label>Candidate ${index+1}</label><div class="bar-track"><div class="bar-fill" style="width:${Math.max(0,Math.min(100,Number(candidate.score)))}%"></div></div><strong>${Number(candidate.score).toFixed(1)}</strong></div>`).join("")}</div><p class="bar-note">所有候選皆使用 ${synthesisResult.budgetN}N；此分數依 fault priority 加權。</p></div>`;
+  $("synthesisResults").innerHTML=chart+synthesisResult.candidates.map((candidate,index)=>{
     const coverage=Object.entries(candidate.coverages).map(([id,value])=>`<span>${escapeHtml(id)} ${value==null?"N/A":`${Number(value).toFixed(0)}%`}</span>`).join("");
     return `<article class="synth-candidate ${index===0?"best":""}"><div class="synth-rank"><span>RANK ${index+1}</span><strong>${Number(candidate.score).toFixed(1)}</strong></div><div class="synth-info"><strong>${escapeHtml(candidate.name)}</strong><small>${candidate.usedN}N · ${candidate.elements.length} elements · canonical weighted score</small><div class="synth-coverages">${coverage}</div><div class="synth-sequence">${escapeHtml(synthSequenceText(candidate.elements))}</div></div><button type="button" data-use-candidate="${index}">${customMarch&&JSON.stringify(customMarch.elements)===JSON.stringify(candidate.elements)?"已選定":"使用此候選"}</button></article>`;
   }).join("");
