@@ -1,4 +1,4 @@
-importScripts("fault-engine.js?v=2.15.0");
+importScripts("fault-engine.js?v=2.16.0");
 self.onmessage=function(event){
   const {id,type,payload}=event.data;
   try{
