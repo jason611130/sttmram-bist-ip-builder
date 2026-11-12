@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const descriptors=FaultEngine.descriptors;
 let priority=descriptors.map(x=>x.id),selected=new Set(priority),synthesis=null,chosen=null,requestId=0;
 const pending=new Map();
-const worker=new Worker("fault-worker.js?v=2.17.0");
+const worker=new Worker("fault-worker.js?v=2.18.0");
 worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.ok?p.resolve(data.result):p.reject(new Error(data.error))};
 worker.onerror=error=>setStatus(`Worker 錯誤：${error.message}`,"error");
 function callWorker(type,payload){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload})})}
