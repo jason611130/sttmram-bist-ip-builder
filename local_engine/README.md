@@ -12,6 +12,7 @@ Open `http://127.0.0.1:8765`. The service hosts `dist/` and provides:
 - `GET /api/descriptors`
 - `POST /api/descriptors`
 - `POST /api/simulate`
+- `POST /api/synthesize`
 - `GET /api/results/latest`
 
 Simulation results are written to `local_engine/results/`. User descriptors are

@@ -14,6 +14,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from simulator import load_descriptors, run_simulation, validate_descriptor
+from synthesizer import synthesize
 
 
 ENGINE_ROOT = Path(__file__).resolve().parent
@@ -82,6 +83,10 @@ class Handler(BaseHTTPRequestHandler):
                     json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
                 )
                 result["resultFile"] = str((RESULTS_ROOT / filename).resolve())
+                self.send_json(result)
+                return
+            if path == "/api/synthesize":
+                result = synthesize(payload, load_descriptors(ENGINE_ROOT))
                 self.send_json(result)
                 return
             if path == "/api/descriptors":

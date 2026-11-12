@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.8" />
-  <link rel="stylesheet" href="help.css?v=2.8" />
+  <link rel="stylesheet" href="styles.css?v=2.9" />
+  <link rel="stylesheet" href="help.css?v=2.9" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
-    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.8</span></div>
+    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.9</span></div>
   </header>
 
   <main>
@@ -44,6 +44,17 @@
           <label class="check optimizer-toggle"><input id="optimizeSequence" type="checkbox" checked /><span><strong>Coverage-aware 最佳化</strong><small>移除被涵蓋的測試，並融合相容 March elements</small></span></label>
         </div>
         <div id="algoNote" class="note"></div>
+        <section class="custom-march-builder" aria-labelledby="customMarchTitle">
+          <div class="custom-march-head"><div><p class="step">INDEPENDENT SEARCH</p><h3 id="customMarchTitle">Custom March Synthesis</h3><p>與上方已發表演算法分開。指定 1–100N，依下方選取的 fault 與 priority 搜尋最佳合法 sequence。</p></div><span>LOCAL ENGINE</span></div>
+          <div class="custom-march-controls">
+            <label><span>N budget</span><input id="synthBudget" type="number" min="1" max="100" value="10"><small>實際每 address operation 數</small></label>
+            <label><span>Search attempts</span><input id="synthAttempts" type="number" min="20" max="1000" step="20" value="200"><small>越高搜尋越完整</small></label>
+            <button id="synthSearchBtn" type="button" disabled>搜尋最佳 March</button>
+          </div>
+          <div class="custom-march-state"><label><input id="enableCustomMarch" type="checkbox" disabled><span>將選定候選加入 Detection sequence、Verilog 與完整 fault simulation</span></label><strong id="customMarchStatus">尚未產生候選</strong></div>
+          <div id="synthesisResults" class="synthesis-results"></div>
+          <p class="custom-march-note">搜尋以 4×2 canonical memory 快速排名；選定候選後，請按下方「開始本機模擬」，以 datasheet depth／width 重新驗證 coverage。</p>
+        </section>
       </section>
       <section class="sequence-panel sequence-first" aria-labelledby="sequenceTitle">
         <div class="sequence-head"><div><p class="step">EXECUTION TRACE</p><h3 id="sequenceTitle">Detection sequence</h3><p>這就是產生進 RTL 的實際順序；由左到右執行，每個 element 會走完整個 address range。</p></div><div id="sequenceTotal" class="sequence-total"></div></div>
@@ -149,6 +160,6 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="app.js?v=2.8"></script>
+  <script src="app.js?v=2.9"></script>
 </body>
 </html>
