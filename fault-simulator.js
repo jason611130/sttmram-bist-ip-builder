@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const descriptors=FaultEngine.descriptors;
 let priority=descriptors.map(x=>x.id),selected=new Set(priority),synthesis=null,chosen=null,requestId=0;
 const pending=new Map();
-const worker=new Worker("fault-worker.js?v=2.14.0");
+const worker=new Worker("fault-worker.js?v=2.15.0");
 worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.ok?p.resolve(data.result):p.reject(new Error(data.error))};
 worker.onerror=error=>setStatus(`Worker 錯誤：${error.message}`,"error");
 function callWorker(type,payload){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload})})}
@@ -22,10 +22,11 @@ function sequenceText(elements){return elements.map((e,i)=>`M${i} ${e.direction=
 function renderCandidates(){
   $("candidateMeta").textContent=`${synthesis.evaluatedCandidates} candidates · ${synthesis.elapsedSeconds.toFixed(3)} s`;
   $("candidateList").innerHTML=synthesis.candidates.map(c=>`<article class="candidate-card ${chosen&&chosen.rank===c.rank?"chosen":""}"><div class="candidate-score"><small>WEIGHTED SCORE</small><strong>${c.score.toFixed(1)}%</strong></div><div><h3>${esc(c.name)}</h3><p>${esc(sequenceText(c.elements))}</p><div class="coverage-chips">${Object.entries(c.coverages).map(([id,v])=>`<span>${id} ${v==null?"N/A":`${Number(v).toFixed(0)}%`}</span>`).join("")}</div></div><button data-rank="${c.rank}" type="button">${chosen&&chosen.rank===c.rank?"已選擇":"選擇"}</button></article>`).join("");
-  $("candidateList").querySelectorAll("button").forEach(button=>button.onclick=()=>chooseCandidate(Number(button.dataset.rank)));
+  $("candidateList").querySelectorAll("button").forEach(button=>button.onclick=()=>selectCandidateAndUpdate(Number(button.dataset.rank)));
 }
 function chooseCandidate(rank){chosen=synthesis.candidates.find(x=>x.rank===rank);renderCandidates();$("selectedSequence").innerHTML=`<div class="sequence-summary"><strong>${esc(chosen.name)}</strong><span>${chosen.usedN}N · canonical score ${chosen.score.toFixed(1)}%</span></div><div class="sequence-elements">${chosen.elements.map((e,i)=>`<article><span>M${i}</span><strong>${e.direction==="down"?"⇓ down":"⇑ up"}</strong><code>${esc(e.operations.map(opText).join(", "))}</code></article>`).join("")}</div>`;$("simulateBtn").disabled=false;$("useBuilderBtn").disabled=false;const {depth,width}=validate();$("fullRunHint").textContent=`將在 ${depth} × ${width} memory 上依序注入。`}
-function setBusy(busy,label){$("searchBtn").disabled=busy;$("simulateBtn").disabled=busy||!chosen;if(busy)setStatus(label,"busy")}
+async function selectCandidateAndUpdate(rank){try{chooseCandidate(rank);setStatus(`${chosen.name} 已選定，正在更新 Fault Coverage…`,"busy");await simulate(true)}catch{}}
+function setBusy(busy,label){$("searchBtn").disabled=busy;$("simulateBtn").disabled=busy||!chosen;document.querySelectorAll(".candidate-card button").forEach(button=>button.disabled=busy);if(busy)setStatus(label,"busy")}
 async function search(){try{const c=validate();saveSettings();setBusy(true,"正在背景搜尋候選演算法…");synthesis=await callWorker("synthesize",{budgetN:c.budget,attempts:c.attempts,faults:c.faults});chosen=null;renderCandidates();chooseCandidate(1);setStatus("最佳 March 已選定，正在同步計算完整 Fault Coverage…","busy");await simulate(true)}catch(error){setStatus(error.message,"error")}finally{setBusy(false,"")}}
 function witnessText(w){return w?`${w.element} / ${w.operation} @ A${w.address}, B${w.bit}`:"尚無 detection witness"}
 function renderFaultCards(result){
