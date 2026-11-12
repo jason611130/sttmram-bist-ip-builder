@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內搜尋 Custom March 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.11.0">
+  <link rel="stylesheet" href="styles.css?v=2.12.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.11</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.12</span></div>
   </header>
 
   <main class="sim-main">
@@ -47,14 +47,14 @@
       </section>
 
       <section class="coverage-results sim-wide">
-        <div class="coverage-result-head"><div><p class="step">05 / FULL GEOMETRY RESULT</p><h2>每一種 Fault 的 Coverage</h2><p>每張卡片是一個獨立 fault model 的長條圖；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>instance coverage</small></div></div>
-        <div id="faultChartGrid" class="fault-chart-grid"><p class="empty-state">完整模擬後，9 種 fault 會各自顯示一張長條圖。</p></div>
+        <div class="coverage-result-head"><div><p class="step">05 / FULL GEOMETRY RESULT</p><h2>Fault Coverage 總覽</h2><p>所有 fault model 整合在同一張長條圖；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>instance coverage</small></div></div>
+        <div id="faultChartGrid" class="fault-chart-grid"><p class="empty-state">完整模擬後，所有 fault coverage 會顯示在同一張圖。</p></div>
         <div id="coverageFoot" class="coverage-foot"></div>
       </section>
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.11.0"></script>
-  <script src="fault-simulator.js?v=2.11.0"></script>
+  <script src="fault-engine.js?v=2.12.0"></script>
+  <script src="fault-simulator.js?v=2.12.0"></script>
 </body>
 </html>
