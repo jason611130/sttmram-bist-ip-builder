@@ -119,7 +119,7 @@
   function rng(seed){let x=seed>>>0;return()=>{x=(Math.imul(1664525,x)+1013904223)>>>0;return x/4294967296}}
   const choice=(r,a)=>a[Math.floor(r()*a.length)];
   function randomCandidate(budget,r){let current=choice(r,patterns),rem=budget-1;const elements=[{direction:choice(r,["up","down"]),operations:[{kind:"w",pattern:current}]}];while(rem>0){const choices=[[Array.from({length:Math.min(4,rem)},()=>({kind:"r",pattern:current})),current]];if(rem>=1)choices.push([[{kind:"r",pattern:current}],current]);for(const target of patterns)if(target!==current){if(rem>=2)choices.push([[{kind:"w",pattern:target},{kind:"r",pattern:target}],target]);if(rem>=3)choices.push([[{kind:"r",pattern:current},{kind:"w",pattern:target},{kind:"r",pattern:target}],target]);if(rem>=6)choices.push([[{kind:"r",pattern:current},{kind:"w",pattern:target},...Array.from({length:4},()=>({kind:"r",pattern:target}))],target])}const [ops,next]=choice(r,choices);elements.push({direction:choice(r,["up","down"]),operations:ops});current=next;rem-=ops.length}return elements}
-  function evaluate(elements,faults){const result=simulate({memory:{depth:4,dataWidth:2},sequence:elements,faults,couplingRelation:"same_word_adjacent",maxInstances:10000});let sum=0,total=0,detectedModels=0;const coverages={};result.models.forEach((m,i)=>{coverages[m.id]=m.coverage;if(m.coverage!=null){const w=faults.length-i;sum+=m.coverage*w;total+=w;if(m.coverage>0)detectedModels++}});return {score:total?Math.round(sum/total*1e6)/1e6:0,detectedModels,coverages,canonicalSummary:result.summary}}
+  function evaluate(elements,faults){const result=simulate({memory:{depth:4,dataWidth:2},sequence:elements,faults,couplingRelation:"same_word_adjacent",maxInstances:10000});let sum=0,total=0,detectedModels=0;const coverages={};result.models.forEach((m,i)=>{coverages[m.id]=m.coverage;if(m.coverage!=null){const w=faults.length-i;sum+=m.coverage*w;total+=w;if(m.coverage>0)detectedModels++}});return {score:total?Math.round(sum/total*1e6)/1e6:0,detectedModels,coverages,priorityVector:faults.map(id=>coverages[id]==null?-1:Number(coverages[id])),canonicalSummary:result.summary}}
   function synthesize(request){
     const started=performance.now(),budget=Number(request.budgetN),attempts=Number(request.attempts||200);
     if(!Number.isInteger(budget)||budget<1||budget>100)throw new Error("Custom March N 必須為 1–100");
@@ -128,9 +128,9 @@
     const candidates=[];if(budget>=10)candidates.push(pad(marchC,budget,"0"));if(budget>=14)candidates.push(pad(dirf,budget,"0"));if(budget>=24)candidates.push(pad([...clone(marchC),...clone(dirf)],budget,"0"));
     const r=rng(Number(request.seed||611130)+budget*1009+attempts);for(let i=0;i<attempts;i++)candidates.push(randomCandidate(budget,r));
     const seen=new Set(),ranked=[];for(const elements of candidates){const key=JSON.stringify(elements);if(seen.has(key))continue;seen.add(key);ranked.push({usedN:countN(elements),elements,...evaluate(elements,faults)})}
-    ranked.sort((a,b)=>b.score-a.score||b.detectedModels-a.detectedModels||a.elements.length-b.elements.length);
+    ranked.sort((a,b)=>{for(let i=0;i<faults.length;i++){const delta=b.priorityVector[i]-a.priorityVector[i];if(delta)return delta}return b.score-a.score||b.detectedModels-a.detectedModels||a.elements.length-b.elements.length});
     const top=ranked.slice(0,5).map((x,i)=>({...x,rank:i+1,name:`Custom March ${budget}N · Candidate ${i+1}`}));
-    return {schema:"sttmram-march-synthesis/v1",budgetN:budget,attempts,canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,candidates:top,evaluatedCandidates:ranked.length,elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6,note:"搜尋分數以 4×2 canonical memory 計算；請再以 datasheet geometry 執行完整模擬。"};
+    return {schema:"sttmram-march-synthesis/v1",budgetN:budget,attempts,canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,rankingMode:"lexicographic-priority",candidates:top,evaluatedCandidates:ranked.length,elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6,note:"先依 fault priority 逐項比較 coverage；全部相同時才以加權分數決勝。"};
   }
   return {descriptors:clone(descriptors),simulate,synthesize,countN};
 });

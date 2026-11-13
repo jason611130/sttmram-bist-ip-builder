@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內搜尋 Custom March 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.20.0">
+  <link rel="stylesheet" href="styles.css?v=2.21.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.20</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.21</span></div>
   </header>
 
   <main class="sim-main">
@@ -27,13 +27,13 @@
       </aside>
 
       <section class="priority-panel">
-        <div class="panel-heading"><div><p class="step">02 / PRIORITY</p><h2>Fault Descriptors</h2></div><small>拖曳 ⠿ 排序；越上方權重越高。</small></div>
+        <div class="panel-heading"><div><p class="step">02 / PRIORITY</p><h2>Fault Descriptors</h2></div><small>拖曳 ⠿ 排序；越上方越先比較 coverage。</small></div>
         <div id="faultPriorityList" class="priority-list"></div>
       </section>
 
       <div class="result-pair sim-wide">
       <section class="coverage-results">
-        <div class="coverage-result-head"><div><p class="step">03 / FULL GEOMETRY RESULT</p><h2>Fault Coverage 總覽</h2><p>搜尋最佳 March 後自動用 datasheet geometry 更新；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>instance coverage</small></div></div>
+        <div class="coverage-result-head"><div><p class="step">03 / FULL GEOMETRY RESULT</p><h2>Fault Coverage 總覽</h2><p>搜尋最佳 March 後自動用 datasheet geometry 更新；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
         <fieldset class="coverage-search-controls"><legend>Custom March</legend><div class="coverage-control-grid"><label>N budget<input id="simBudget" type="number" min="1" max="100" value="12"><small>精確使用 1–100N</small></label><label>Search attempts<input id="simAttempts" type="number" min="20" max="1000" step="20" value="60"><small>候選產生次數</small></label><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Auto instance max / fault<input id="simLimit" type="number" value="1" readonly aria-describedby="simLimitNote"><small id="simLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label></div></fieldset>
         <button id="searchBtn" class="primary coverage-search-button" type="button">搜尋最佳 March <span>→</span></button>
         <div id="workerStatus" class="worker-status"><i></i><span>瀏覽器計算核心已就緒</span></div>
@@ -42,7 +42,7 @@
       </section>
 
       <section class="candidate-panel">
-        <div class="panel-heading"><div><p class="step">04 / CANONICAL SEARCH</p><h2>候選演算法</h2></div><div id="candidateMeta" class="mini-meta">尚未搜尋</div></div>
+        <div class="panel-heading"><div><p class="step">04 / CANONICAL SEARCH</p><h2>候選演算法</h2><small>顯示 4×2 canonical weighted score；候選排名採 priority-first。</small></div><div id="candidateMeta" class="mini-meta">尚未搜尋</div></div>
         <div id="candidateList" class="candidate-list"></div>
       </section>
       </div>
@@ -55,7 +55,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.20.0"></script>
-  <script src="fault-simulator.js?v=2.20.0"></script>
+  <script src="fault-engine.js?v=2.21.0"></script>
+  <script src="fault-simulator.js?v=2.21.0"></script>
 </body>
 </html>

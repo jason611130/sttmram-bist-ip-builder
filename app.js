@@ -6,6 +6,11 @@ let activeFaultCoverageKey = "", activeFaultCoverageLabel = "";
 let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = [], simulationResult = null, engineOnline = false;
 let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
+let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.21.0");
+bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
+bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
+function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
 
 const faultUniverse = [
   {id:"SAF",name:"Stuck-at fault",type:"永久",description:"Cell 永久固定為 0 或 1，任何 write 都無法改變其狀態。",roles:["VTM"],relation:"single",supported:true},
@@ -18,6 +23,51 @@ const faultUniverse = [
   {id:"TRDF",name:"Transient read disturb",type:"暫態",description:"Read 期間偶發擾動；沒有 occurrence model 時不能宣稱 deterministic coverage。",roles:["VTM"],relation:"single",supported:false},
   {id:"TWF",name:"Transient write fault",type:"暫態",description:"Write 偶發失敗；沒有 occurrence model 時不能宣稱 deterministic coverage。",roles:["VTM"],relation:"single",supported:false}
 ];
+
+function loadBistBrowserSettings(){
+  try{
+    const saved=JSON.parse(localStorage.getItem("sttmram-simulator-settings"));if(!saved)return;
+    if(Array.isArray(saved.priority))bistBrowserPriority=[...saved.priority.filter(id=>FaultEngine.descriptors.some(d=>d.id===id)),...FaultEngine.descriptors.map(d=>d.id).filter(id=>!saved.priority.includes(id))];
+    if(Array.isArray(saved.selected))bistBrowserSelected=new Set(saved.selected);
+    if(saved.budget)$("bistBrowserBudget").value=saved.budget;
+    if(saved.attempts)$("bistBrowserAttempts").value=saved.attempts;
+    if(saved.relation)$("bistBrowserRelation").value=saved.relation;
+  }catch{}
+}
+function saveBistBrowserSettings(){
+  let saved={};try{saved=JSON.parse(localStorage.getItem("sttmram-simulator-settings"))||{}}catch{}
+  Object.assign(saved,{budget:+$("bistBrowserBudget").value,attempts:+$("bistBrowserAttempts").value,relation:$("bistBrowserRelation").value,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});
+  localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
+}
+function bistDescriptorInstances(d,depth,width,relation){
+  if(!d.supported)return 0;
+  const active=d.relation!=="single"?relation:"single";
+  const maps=active==="single"?depth*width:active==="same_word_adjacent"?depth*Math.max(0,width-1)*2:Math.max(0,depth-1)*width*2;
+  return maps*(d.variants?.length||1);
+}
+function updateBistBrowserLimit(c=readConfig()){
+  const relation=$("bistBrowserRelation").value,counts=bistBrowserPriority.filter(id=>bistBrowserSelected.has(id)).map(id=>{const d=FaultEngine.descriptors.find(x=>x.id===id);return {id,count:bistDescriptorInstances(d,c.depth,c.dataWidth,relation)}});
+  const largest=counts.reduce((best,x)=>x.count>best.count?x:best,{id:"—",count:1});
+  $("bistBrowserLimit").value=largest.count;
+  $("bistBrowserLimitNote").textContent=`${largest.id} 最大需求；依 ${c.depth.toLocaleString()} × ${c.dataWidth.toLocaleString()} 自動計算`;
+  return largest.count;
+}
+function renderBistBrowserPriority(){
+  const list=$("bistFaultPriorityList");
+  list.innerHTML=bistBrowserPriority.map((id,index)=>{const d=FaultEngine.descriptors.find(x=>x.id===id);return `<article class="priority-item ${bistBrowserSelected.has(id)?"selected":""}" data-bist-priority-item="${id}"><label><input type="checkbox" data-bist-fault="${id}" ${bistBrowserSelected.has(id)?"checked":""}><span><strong>${escapeHtml(id)} · ${escapeHtml(d.name)}</strong><small>${escapeHtml(d.description)}</small></span></label><div><button type="button" class="drag-handle" data-bist-drag="${id}" aria-label="拖曳 ${id} 改變優先序">⠿</button><button type="button" data-bist-move="up" data-id="${id}" ${index===0?"disabled":""}>↑</button><button type="button" data-bist-move="down" data-id="${id}" ${index===bistBrowserPriority.length-1?"disabled":""}>↓</button></div></article>`}).join("");
+  list.querySelectorAll("input[data-bist-fault]").forEach(input=>input.onchange=()=>{input.checked?bistBrowserSelected.add(input.dataset.bistFault):bistBrowserSelected.delete(input.dataset.bistFault);saveBistBrowserSettings();renderBistBrowserPriority()});
+  list.querySelectorAll("button[data-bist-move]").forEach(button=>button.onclick=()=>{const i=bistBrowserPriority.indexOf(button.dataset.id),j=button.dataset.bistMove==="up"?i-1:i+1;[bistBrowserPriority[i],bistBrowserPriority[j]]=[bistBrowserPriority[j],bistBrowserPriority[i]];saveBistBrowserSettings();renderBistBrowserPriority()});
+  let dragged=null;
+  const clear=()=>list.querySelectorAll(".priority-item").forEach(item=>item.classList.remove("dragging","drop-before","drop-after"));
+  list.querySelectorAll(".drag-handle").forEach(handle=>{const item=handle.closest(".priority-item");handle.onpointerdown=()=>{item.draggable=true;item.dataset.dragArmed="1"};handle.onpointerup=handle.onpointercancel=()=>{if(!dragged){item.draggable=false;delete item.dataset.dragArmed}}});
+  list.querySelectorAll(".priority-item").forEach(item=>{
+    item.ondragstart=event=>{if(item.dataset.dragArmed!=="1"){event.preventDefault();return}dragged=item.dataset.bistPriorityItem;event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",dragged);item.classList.add("dragging")};
+    item.ondragover=event=>{if(!dragged||dragged===item.dataset.bistPriorityItem)return;event.preventDefault();clear();list.querySelector(`[data-bist-priority-item="${dragged}"]`)?.classList.add("dragging");item.classList.add(event.clientY>item.getBoundingClientRect().top+item.offsetHeight/2?"drop-after":"drop-before")};
+    item.ondrop=event=>{event.preventDefault();if(!dragged||dragged===item.dataset.bistPriorityItem)return;const after=event.clientY>item.getBoundingClientRect().top+item.offsetHeight/2;bistBrowserPriority.splice(bistBrowserPriority.indexOf(dragged),1);bistBrowserPriority.splice(bistBrowserPriority.indexOf(item.dataset.bistPriorityItem)+(after?1:0),0,dragged);saveBistBrowserSettings();renderBistBrowserPriority()};
+    item.ondragend=()=>{item.draggable=false;delete item.dataset.dragArmed;dragged=null;clear()};
+  });
+  updateBistBrowserLimit();
+}
 
 function readConfig(){
   const c={}; ids.forEach(id=>{const e=$(id);c[id]=e.type==="checkbox"?e.checked:(e.type==="number"?Number(e.value):e.value.trim())});
@@ -494,8 +544,33 @@ function useSynthesisCandidate(index){
   renderSynthesisResults();render();
 }
 
+function setBistBrowserStatus(message,state="ready"){$("bistBrowserStatus").className=`worker-status ${state}`;$("bistBrowserStatus").querySelector("span").textContent=message}
+function renderBistBrowserCoverage(result,candidate){
+  const colors={SAF:"#78a6d0",TF:"#8ab6a2",RDF:"#c99873",IRF:"#a996ce",CFwd:"#d29a9a",dIRF:"#7fb7bc",RTF:"#c3ad6e",TRDF:"#8d98a3",TWF:"#9b8f9d"};
+  $("bistBrowserChart").innerHTML=`<div class="vertical-chart"><div class="vertical-axis"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div class="vertical-plot">${result.models.map(m=>{const value=m.coverage==null?null:Number(m.coverage),color=colors[m.id]||"#7899b7";return `<div class="vertical-column ${value==null?"na":""}" style="--fault-color:${color}" title="${escapeHtml(m.description)}"><strong>${value==null?"N/A":`${value.toFixed(1)}%`}</strong><div class="vertical-bar"><span style="height:${value==null?100:Math.max(0,Math.min(100,value))}%"></span></div><b>${escapeHtml(m.id)}</b><small>${value==null?"N/A":`${Number(m.detected).toLocaleString()}/${Number(m.injected).toLocaleString()}`}</small></div>`}).join("")}</div></div>`;
+  const summary=result.summary;$("bistBrowserOverall").innerHTML=`<strong>${summary.weightedCoverage==null?"—":`${Number(summary.weightedCoverage).toFixed(2)}%`}</strong><small>full-geometry instance coverage</small>`;
+  $("bistBrowserSequence").innerHTML=`<div><span>Selected candidate</span><strong>${escapeHtml(candidate.name)}</strong><small>${candidate.usedN}N · canonical weighted score ${Number(candidate.score).toFixed(1)}% · ranking: priority-first</small></div><code>${escapeHtml(synthSequenceText(candidate.elements))}</code>`;
+}
+async function runBistBrowserSearch(){
+  const c=readConfig(),budget=Number($("bistBrowserBudget").value),attempts=Number($("bistBrowserAttempts").value),faults=bistBrowserPriority.filter(id=>bistBrowserSelected.has(id));
+  if(!Number.isInteger(budget)||budget<1||budget>100){setBistBrowserStatus("N budget 必須為 1–100","error");return}
+  if(!Number.isInteger(attempts)||attempts<20||attempts>1000){setBistBrowserStatus("Search attempts 必須為 20–1000","error");return}
+  if(!faults.length){setBistBrowserStatus("至少選擇一種 Fault","error");return}
+  const button=$("bistBrowserSearchBtn");button.disabled=true;saveBistBrowserSettings();setBistBrowserStatus("依 Fault priority 搜尋候選演算法…","busy");
+  try{
+    bistBrowserSynthesis=await callBistBrowserWorker("synthesize",{budgetN:budget,attempts,faults,seed:611130});
+    const candidate=bistBrowserSynthesis.candidates[0];if(!candidate)throw new Error("沒有可用候選演算法");
+    customMarch={...candidate,name:`Custom March ${candidate.usedN}N（BIST 自動搜尋）`};localStorage.setItem("sttmram-custom-march",JSON.stringify(customMarch));localStorage.setItem("sttmram-custom-march-enabled","true");$("enableCustomMarch").disabled=false;$("enableCustomMarch").checked=true;
+    setBistBrowserStatus(`已選定第一順位最佳候選，正在 ${c.depth} × ${c.dataWidth} geometry 注入…`,"busy");
+    const result=await callBistBrowserWorker("simulate",{memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:customMarch.name,operationComplexity:`${candidate.usedN}N`,sequence:candidate.elements,faults,couplingRelation:$("bistBrowserRelation").value,maxInstances:updateBistBrowserLimit(c)});
+    renderBistBrowserCoverage(result,candidate);render();setBistBrowserStatus(`完整模擬完成：${Number(result.summary.detected).toLocaleString()} / ${Number(result.summary.injected).toLocaleString()} instances detected`,"done");
+  }catch(error){setBistBrowserStatus(`搜尋失敗：${error.message}`,"error")}
+  finally{button.disabled=false}
+}
+
 function render(){
   const c=readConfig(),a=algorithm(c),errors=validate(c);
+  updateBistBrowserLimit(c);
   $("addrWidth").disabled=c.autoAddr;
   $("paperLiteral").disabled=!c.algoWom26;
   $("enableCustomMarch").disabled=!customMarch;
@@ -611,6 +686,8 @@ $("downloadAllBtn").onclick=()=>Object.values(files).forEach((f,i)=>setTimeout((
 $("coverageCsvBtn").onclick=()=>download("sttmram_fault_coverage.csv",faultCoverageCsv());
 $("simulationRunBtn").onclick=runLocalSimulation;
 $("synthSearchBtn").onclick=runSynthesis;
+$("bistBrowserSearchBtn").onclick=runBistBrowserSearch;
+[$("bistBrowserBudget"),$("bistBrowserAttempts"),$("bistBrowserRelation")].forEach(control=>control.addEventListener("change",()=>{saveBistBrowserSettings();updateBistBrowserLimit();setBistBrowserStatus("設定已更新；請重新搜尋最佳 March") }));
 $("synthesisResults").onclick=e=>{const button=e.target.closest("button[data-use-candidate]");if(button)useSynthesisCandidate(Number(button.dataset.useCandidate))};
 function markSimulationStale(){if(!simulationResult)return;$("simulationMessage").textContent="模擬設定已變更；請重新執行本機計算。";$("simulationMessage").className="simulation-message warn"}
 $("descriptorGrid").onchange=e=>{const input=e.target.closest("input[data-descriptor-id]");if(!input)return;input.checked?selectedDescriptorIds.add(input.dataset.descriptorId):selectedDescriptorIds.delete(input.dataset.descriptorId);markSimulationStale();render()};
@@ -627,4 +704,4 @@ $("faultCloseBtn").onclick=()=>$("faultDialog").close();
 $("faultDialog").onclick=e=>{if(e.target===$("faultDialog"))$("faultDialog").close()};
 try{const saved=JSON.parse(localStorage.getItem("sttmram-bist-config"));if(saved)Object.entries(saved).forEach(([k,v])=>{const e=$(k);if(e)e.type==="checkbox"?e.checked=v:e.value=v})}catch{}
 if(customMarch&&localStorage.getItem("sttmram-custom-march-enabled")==="true")$("enableCustomMarch").checked=true;
-render();
+loadBistBrowserSettings();renderBistBrowserPriority();render();
