@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.20.0" />
-  <link rel="stylesheet" href="help.css?v=2.20.0" />
+  <link rel="stylesheet" href="styles.css?v=2.21.0" />
+  <link rel="stylesheet" href="help.css?v=2.21.0" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>IP Builder</small></div></div>
     <nav class="site-nav" aria-label="主要功能"><a class="active" href="index.html">BIST Builder</a><a href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.20</span></div>
+    <div class="status"><span class="dot"></span> Verilog-2001 generator <span class="version">v2.21</span></div>
   </header>
 
   <main>
@@ -55,7 +55,7 @@
           <div id="synthesisResults" class="synthesis-results"></div>
           <p class="custom-march-note">搜尋以 4×2 canonical memory 快速排名；選定候選後，請按下方「開始本機模擬」，以 datasheet depth／width 重新驗證 coverage。</p>
         </section>
-        <section class="simulator-link-card"><div><p class="step">BROWSER FAULT SIMULATOR</p><h3>Custom March 與 instance coverage 已移到獨立分頁</h3><p>直接在瀏覽器搜尋 1–100N、設定 fault priority，並查看每種 fault 的獨立長條圖；不需要啟動本機 Python。</p></div><a href="fault-simulator.html">開啟 Fault Simulator →</a><div class="custom-march-state"><label><input id="enableCustomMarch" type="checkbox" disabled><span>將 Simulator 選定的 Custom March 加入 Detection sequence 與 Verilog</span></label><strong id="customMarchStatus">尚未從 Simulator 選定候選</strong></div></section>
+        <section class="simulator-link-card"><div><p class="step">BROWSER FAULT SIMULATOR</p><h3>Custom March 與 instance coverage</h3><p>BIST Builder 下方已可直接搜尋；獨立分頁則提供並排候選比較與完整 Detection sequence。</p></div><a href="fault-simulator.html">開啟完整 Simulator →</a><div class="custom-march-state"><label><input id="enableCustomMarch" type="checkbox" disabled><span>將搜尋到的 Custom March 加入 Detection sequence 與 Verilog</span></label><strong id="customMarchStatus">尚未選定候選</strong></div></section>
       </section>
       <section class="sequence-panel sequence-first" aria-labelledby="sequenceTitle">
         <div class="sequence-head"><div><p class="step">EXECUTION TRACE</p><h3 id="sequenceTitle">Detection sequence</h3><p>這就是產生進 RTL 的實際順序；由左到右執行，每個 element 會走完整個 address range。</p></div><div id="sequenceTotal" class="sequence-total"></div></div>
@@ -108,6 +108,20 @@
           <div id="coverageStats" class="coverage-stats"></div>
           <div id="faultMatrix" class="fault-matrix"></div>
           <p class="coverage-note">此處計算的是 survey 故障模型「種類聯集」，不是 fault-injection instance coverage。相同 fault 被多個演算法涵蓋時只計一次。</p>
+        </section>
+        <section class="bist-browser-coverage coverage-results" aria-labelledby="bistBrowserCoverageTitle">
+          <div class="coverage-result-head"><div><p class="step">03 / BROWSER FAULT SEARCH</p><h2 id="bistBrowserCoverageTitle">Custom March 與 Fault Coverage</h2><p>直接使用上方 BIST Memory geometry 搜尋；Fault 會依拖曳順序逐項優先比較 coverage。</p></div><div id="bistBrowserOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
+          <fieldset class="coverage-search-controls"><legend>Custom March</legend><div class="coverage-control-grid">
+            <label>N budget<input id="bistBrowserBudget" type="number" min="1" max="100" value="12"><small>精確使用 1–100N</small></label>
+            <label>Search attempts<input id="bistBrowserAttempts" type="number" min="20" max="1000" step="20" value="60"><small>候選產生次數</small></label>
+            <label>Coupling relation<select id="bistBrowserRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label>
+            <label>Auto instance max / fault<input id="bistBrowserLimit" type="number" value="1" readonly aria-describedby="bistBrowserLimitNote"><small id="bistBrowserLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label>
+          </div></fieldset>
+          <details class="bist-priority-settings"><summary>Fault priority（可勾選、拖曳排序）</summary><p>第一順位 coverage 最高者優先；相同時才比較下一順位。</p><div id="bistFaultPriorityList" class="priority-list"></div></details>
+          <button id="bistBrowserSearchBtn" class="primary coverage-search-button" type="button">搜尋最佳 March <span>→</span></button>
+          <div id="bistBrowserStatus" class="worker-status"><i></i><span>瀏覽器計算核心已就緒</span></div>
+          <div id="bistBrowserChart" class="fault-chart-grid"><p class="empty-state">搜尋後會顯示每一種 Fault 的 coverage。</p></div>
+          <div id="bistBrowserSequence" class="bist-browser-sequence"></div>
         </section>
         <section class="fault-sim-panel" aria-labelledby="faultSimTitle" hidden>
           <div class="fault-sim-head">
@@ -162,6 +176,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="app.js?v=2.20.0"></script>
+  <script src="fault-engine.js?v=2.21.0"></script>
+  <script src="app.js?v=2.21.0"></script>
 </body>
 </html>
