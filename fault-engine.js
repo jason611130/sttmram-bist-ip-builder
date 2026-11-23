@@ -331,5 +331,11 @@
     const top=ranked.map((x,i)=>({...x,rank:i+1,name:`Descriptor TAGS March ${x.usedN}N · Candidate ${i+1}`}));
     return {schema:"sttmram-tags-synthesis/v4",method:"Strict-Priority Fault-Descriptor TAGS",maxN,frontierLimit,stoppedAtN,stopReason,history,canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,rankingMode:"strict-staged-detected-then-progress",activeTargetFault:activeTargetFault(top[0],faults),candidates:top,evaluatedCandidates,elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6,note:"依 fault priority 逐一完成 DETECTED、ACTIVATED、PROGRESS、SETUP 目標；dynamic repeated access 只有在同一 March element 內才連續計數，最後再做 full-geometry detected coverage 驗證。"};
   }
-  return {descriptors:clone(descriptors),simulate,synthesize,countN,groupMarchElements};
+  function analyze(request){
+    const started=performance.now(),faults=request.faults||descriptors.map(x=>x.id),elements=groupMarchElements(request.sequence||request.elements||[]);
+    if(!elements.length)throw new Error("Analysis sequence 不可為空");
+    const metrics=evaluate(elements,faults),usedN=countN(elements);
+    return {schema:"sttmram-tags-analysis/v1",method:"Fixed-Algorithm Fault-Descriptor TAGS Analysis",canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,candidate:{...metrics,rank:1,name:request.name||`Existing March ${usedN}N`,usedN,elements},elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6};
+  }
+  return {descriptors:clone(descriptors),simulate,synthesize,analyze,countN,groupMarchElements};
 });

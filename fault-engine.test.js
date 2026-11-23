@@ -98,6 +98,22 @@ const dynamicAcrossElements=engine.simulate({
 assert.equal(dynamicAcrossElements.models.find(model=>model.id==="dRDF").coverage,0);
 assert.equal(dynamicAcrossElements.models.find(model=>model.id==="dTF").coverage,0);
 
+const fixedAnalysis=engine.analyze({
+  name:"March C− 10N",faults:["SAF","TF"],
+  sequence:[
+    {direction:"up",operations:[{kind:"w",pattern:"0"}]},
+    {direction:"up",operations:[{kind:"r",pattern:"0"},{kind:"w",pattern:"1"}]},
+    {direction:"up",operations:[{kind:"r",pattern:"1"},{kind:"w",pattern:"0"}]},
+    {direction:"down",operations:[{kind:"r",pattern:"0"},{kind:"w",pattern:"1"}]},
+    {direction:"down",operations:[{kind:"r",pattern:"1"},{kind:"w",pattern:"0"}]},
+    {direction:"up",operations:[{kind:"r",pattern:"0"}]}
+  ]
+});
+assert.equal(fixedAnalysis.schema,"sttmram-tags-analysis/v1");
+assert.equal(fixedAnalysis.candidate.usedN,10);
+assert.equal(fixedAnalysis.candidate.coverages.SAF,100);
+assert.equal(fixedAnalysis.candidate.coverages.TF,100);
+
 const rtfWithoutIdle=engine.simulate({
   memory:{depth:4,dataWidth:2},faults:["RTF"],maxInstances:1000,
   sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]

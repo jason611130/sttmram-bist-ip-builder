@@ -7,7 +7,7 @@ let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = []
 let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
 let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
-const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.26.0");
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.27.0");
 bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
 bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
 function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
