@@ -3,6 +3,15 @@
 const assert=require("node:assert/strict");
 const engine=require("./fault-engine.js");
 
+const grouped=engine.groupMarchElements([
+  {direction:"up",operations:[{kind:"w",pattern:"0"}]},
+  {direction:"up",operations:[{kind:"r",pattern:"0"},{kind:"w",pattern:"1"}]},
+  {direction:"down",operations:[{kind:"r",pattern:"1"}]}
+]);
+assert.equal(grouped.length,2);
+assert.deepEqual(grouped[0],{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"},{kind:"w",pattern:"1"}]});
+assert.equal(grouped[1].direction,"down");
+
 const d1=engine.synthesize({maxN:1,frontierLimit:20,faults:["dIRF"]});
 assert.equal(d1.schema,"sttmram-tags-synthesis/v3");
 assert.equal(d1.method,"Fault-Descriptor Progress TAGS");

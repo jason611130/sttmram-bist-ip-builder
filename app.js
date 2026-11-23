@@ -7,7 +7,7 @@ let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = []
 let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
 let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
-const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.23.0");
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.23.1");
 bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
 bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
 function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
@@ -510,7 +510,7 @@ async function runLocalSimulation(){
 }
 
 function synthSequenceText(elements){
-  return elements.map((element,index)=>{const dir=element.direction==="down"?"↓":"↑";const ops=[];element.operations.forEach(op=>{const key=`${op.kind}${op.pattern}`,last=ops[ops.length-1];if(last&&last.key===key)last.count++;else ops.push({key,count:1})});return `M${index} ${dir} (${ops.map(op=>`${op.key}${op.count>1?`×${op.count}`:""}`).join(", ")})`}).join("; ");
+  return FaultEngine.groupMarchElements(elements).map((element,index)=>{const dir=element.direction==="down"?"↓":"↑";const ops=[];element.operations.forEach(op=>{const key=`${op.kind}${op.pattern}`,last=ops[ops.length-1];if(last&&last.key===key)last.count++;else ops.push({key,count:1})});return `M${index} ${dir} (${ops.map(op=>`${op.key}${op.count>1?`×${op.count}`:""}`).join(", ")})`}).join("; ");
 }
 function renderSynthesisResults(){
   if(!synthesisResult){$("synthesisResults").innerHTML="";return}
@@ -520,7 +520,7 @@ function renderSynthesisResults(){
   const chart=`<div class="synthesis-chart"><div class="chart-heading"><div><span>TAGS CANONICAL SCORE</span><strong>Top candidate comparison</strong></div><div class="chart-legend"><i></i>Weighted score</div></div><div class="candidate-bars">${synthesisResult.candidates.map((candidate,index)=>`<div class="bar-row"><label>Candidate ${index+1}</label><div class="bar-track"><div class="bar-fill" style="width:${Math.max(0,Math.min(100,Number(candidate.score)))}%"></div></div><strong>${Number(candidate.score).toFixed(1)}</strong></div>`).join("")}</div><p class="bar-note">從 1N 逐層擴展至 ${synthesisResult.stoppedAtN}N；依 fault priority 排名，候選可能因 irredundancy reduction 縮短。</p></div>`;
   $("synthesisResults").innerHTML=history+chart+synthesisResult.candidates.map((candidate,index)=>{
     const coverage=Object.entries(candidate.coverages).map(([id,value])=>{const progress=Number(candidate.descriptorProgress?.[id]);return `<span>${escapeHtml(id)} D ${value==null?"N/A":`${Number(value).toFixed(0)}%`} · P ${Number.isFinite(progress)&&progress>=0?`${(progress/10).toFixed(0)}%`:"N/A"}</span>`}).join("");
-    return `<article class="synth-candidate ${index===0?"best":""}"><div class="synth-rank"><span>RANK ${index+1}</span><strong>${Number(candidate.score).toFixed(1)}</strong></div><div class="synth-info"><strong>${escapeHtml(candidate.name)}</strong><small>${candidate.usedN}N · ${candidate.elements.length} elements · canonical weighted score</small><div class="synth-coverages">${coverage}</div><div class="synth-sequence">${escapeHtml(synthSequenceText(candidate.elements))}</div></div><button type="button" data-use-candidate="${index}">${customMarch&&JSON.stringify(customMarch.elements)===JSON.stringify(candidate.elements)?"已選定":"使用此候選"}</button></article>`;
+    return `<article class="synth-candidate ${index===0?"best":""}"><div class="synth-rank"><span>RANK ${index+1}</span><strong>${Number(candidate.score).toFixed(1)}</strong></div><div class="synth-info"><strong>${escapeHtml(candidate.name)}</strong><small>${candidate.usedN}N · ${FaultEngine.groupMarchElements(candidate.elements).length} grouped elements · canonical weighted score</small><div class="synth-coverages">${coverage}</div><div class="synth-sequence">${escapeHtml(synthSequenceText(candidate.elements))}</div></div><button type="button" data-use-candidate="${index}">${customMarch&&JSON.stringify(customMarch.elements)===JSON.stringify(candidate.elements)?"已選定":"使用此候選"}</button></article>`;
   }).join("");
 }
 async function runSynthesis(){

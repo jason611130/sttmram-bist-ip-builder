@@ -140,6 +140,15 @@
   }
   const patterns=["0","1","01","10"],directions=["up","down"];
   const countN=e=>e.reduce((s,x)=>s+x.operations.length,0);
+  function groupMarchElements(elements){
+    const grouped=[];
+    for(const element of elements||[]){
+      const last=grouped[grouped.length-1],operations=(element.operations||[]).map(operation=>({...operation}));
+      if(last&&last.direction===element.direction)last.operations.push(...operations);
+      else grouped.push({direction:element.direction,operations});
+    }
+    return grouped;
+  }
   const candidateKey=e=>JSON.stringify(e);
   function normalizeReadPatterns(elements){
     const normalized=clone(elements);let current="0";
@@ -278,5 +287,5 @@
     const top=ranked.map((x,i)=>({...x,rank:i+1,name:`Descriptor TAGS March ${x.usedN}N · Candidate ${i+1}`}));
     return {schema:"sttmram-tags-synthesis/v3",method:"Fault-Descriptor Progress TAGS",maxN,frontierLimit,stoppedAtN,stopReason,history,canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,rankingMode:"detected-coverage-then-descriptor-progress",candidates:top,evaluatedCandidates,elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6,note:"由 1N 逐層擴展 March template；SETUP、PROGRESS、ACTIVATED 或 DETECTED 任一 instance 前進皆視為貢獻，instance-level dominance 剪枝後，以 detected coverage 完成判定並做 full-geometry 驗證。"};
   }
-  return {descriptors:clone(descriptors),simulate,synthesize,countN};
+  return {descriptors:clone(descriptors),simulate,synthesize,countN,groupMarchElements};
 });
