@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","repeatWom26","repeatDirf14","repeatMarchC","repeatMarchCM","paperLiteral","optimizeSequence","synthBudget","synthAttempts","enableCustomMarch","readLatency","writeLatency","useReady"];
-const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,repeatWom26:1,repeatDirf14:1,repeatMarchC:1,repeatMarchCM:1,paperLiteral:false,optimizeSequence:true,synthBudget:10,synthAttempts:200,enableCustomMarch:false,readLatency:1,writeLatency:1,useReady:false};
+const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,repeatWom26:1,repeatDirf14:1,repeatMarchC:1,repeatMarchCM:1,paperLiteral:false,optimizeSequence:true,synthBudget:12,synthAttempts:60,enableCustomMarch:false,readLatency:1,writeLatency:1,useReady:false};
 let files = {}, activeFile = "core", selectedFaultId = null, faultCardHtmlById = {};
 let activeFaultCoverageKey = "", activeFaultCoverageLabel = "";
 let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = [], simulationResult = null, engineOnline = false;
@@ -160,8 +160,8 @@ function validate(c){
   if(!Number.isInteger(c.depth)||c.depth<2)errors.push("Depth 必須是大於 1 的整數");
   if(!Number.isInteger(c.dataWidth)||c.dataWidth<2)errors.push("Data width 必須至少為 2");
   [c.repeatWom26,c.repeatDirf14,c.repeatMarchC,c.repeatMarchCM].forEach(value=>{if(!Number.isInteger(value)||value<1||value>20)errors.push("每個 March 演算法的執行次數必須為 1–20")});
-  if(!Number.isInteger(c.synthBudget)||c.synthBudget<1||c.synthBudget>100)errors.push("Custom March N 必須為 1–100")
-  if(!Number.isInteger(c.synthAttempts)||c.synthAttempts<20||c.synthAttempts>1000)errors.push("Search attempts 必須為 20–1000")
+  if(!Number.isInteger(c.synthBudget)||c.synthBudget<1||c.synthBudget>100)errors.push("Maximum N 必須為 1–100")
+  if(!Number.isInteger(c.synthAttempts)||c.synthAttempts<10||c.synthAttempts>1000)errors.push("Frontier limit 必須為 10–1000")
   if(c.enableCustomMarch&&!customMarch)errors.push("請先搜尋並選定一個 Custom March 候選")
   if((1<<Math.min(c.addrWidth,30))<c.depth && c.addrWidth<=30)errors.push("Address width 無法涵蓋 depth");
   return errors;
@@ -514,9 +514,11 @@ function synthSequenceText(elements){
 }
 function renderSynthesisResults(){
   if(!synthesisResult){$("synthesisResults").innerHTML="";return}
-  $("customMarchStatus").textContent=`已評估 ${synthesisResult.evaluatedCandidates} 個候選 · ${Number(synthesisResult.elapsedSeconds).toFixed(3)} s`;
-  const chart=`<div class="synthesis-chart"><div class="chart-heading"><div><span>CANONICAL SEARCH SCORE</span><strong>Top candidate comparison</strong></div><div class="chart-legend"><i></i>Weighted score</div></div><div class="candidate-bars">${synthesisResult.candidates.map((candidate,index)=>`<div class="bar-row"><label>Candidate ${index+1}</label><div class="bar-track"><div class="bar-fill" style="width:${Math.max(0,Math.min(100,Number(candidate.score)))}%"></div></div><strong>${Number(candidate.score).toFixed(1)}</strong></div>`).join("")}</div><p class="bar-note">所有候選皆使用 ${synthesisResult.budgetN}N；此分數依 fault priority 加權。</p></div>`;
-  $("synthesisResults").innerHTML=chart+synthesisResult.candidates.map((candidate,index)=>{
+  const reason=synthesisResult.stopReason==="full-coverage"?"已達 100% target coverage":synthesisResult.stopReason==="frontier-empty"?"沒有可繼續擴展的 template":"已達 Maximum N";
+  $("customMarchStatus").textContent=`TAGS 停在 ${synthesisResult.stoppedAtN}N · ${reason} · 已評估 ${synthesisResult.evaluatedCandidates} 個候選 · ${Number(synthesisResult.elapsedSeconds).toFixed(3)} s`;
+  const history=`<div class="tags-history"><strong>TAGS convergence</strong>${synthesisResult.history.map(level=>`<span><b>${level.n}N</b><i style="width:${Math.max(2,Math.min(100,Number(level.bestScore)))}%"></i><em>${Number(level.bestScore).toFixed(1)}% · kept ${level.kept}</em></span>`).join("")}</div>`;
+  const chart=`<div class="synthesis-chart"><div class="chart-heading"><div><span>TAGS CANONICAL SCORE</span><strong>Top candidate comparison</strong></div><div class="chart-legend"><i></i>Weighted score</div></div><div class="candidate-bars">${synthesisResult.candidates.map((candidate,index)=>`<div class="bar-row"><label>Candidate ${index+1}</label><div class="bar-track"><div class="bar-fill" style="width:${Math.max(0,Math.min(100,Number(candidate.score)))}%"></div></div><strong>${Number(candidate.score).toFixed(1)}</strong></div>`).join("")}</div><p class="bar-note">從 1N 逐層擴展至 ${synthesisResult.stoppedAtN}N；依 fault priority 排名，候選可能因 irredundancy reduction 縮短。</p></div>`;
+  $("synthesisResults").innerHTML=history+chart+synthesisResult.candidates.map((candidate,index)=>{
     const coverage=Object.entries(candidate.coverages).map(([id,value])=>`<span>${escapeHtml(id)} ${value==null?"N/A":`${Number(value).toFixed(0)}%`}</span>`).join("");
     return `<article class="synth-candidate ${index===0?"best":""}"><div class="synth-rank"><span>RANK ${index+1}</span><strong>${Number(candidate.score).toFixed(1)}</strong></div><div class="synth-info"><strong>${escapeHtml(candidate.name)}</strong><small>${candidate.usedN}N · ${candidate.elements.length} elements · canonical weighted score</small><div class="synth-coverages">${coverage}</div><div class="synth-sequence">${escapeHtml(synthSequenceText(candidate.elements))}</div></div><button type="button" data-use-candidate="${index}">${customMarch&&JSON.stringify(customMarch.elements)===JSON.stringify(candidate.elements)?"已選定":"使用此候選"}</button></article>`;
   }).join("");
@@ -524,20 +526,20 @@ function renderSynthesisResults(){
 async function runSynthesis(){
   if(!engineOnline)return;
   const budget=Number($("synthBudget").value),attempts=Number($("synthAttempts").value);
-  if(!Number.isInteger(budget)||budget<1||budget>100){$("customMarchStatus").textContent="N budget 必須為 1–100";return}
-  if(!Number.isInteger(attempts)||attempts<20||attempts>1000){$("customMarchStatus").textContent="Search attempts 必須為 20–1000";return}
+  if(!Number.isInteger(budget)||budget<1||budget>100){$("customMarchStatus").textContent="Maximum N 必須為 1–100";return}
+  if(!Number.isInteger(attempts)||attempts<10||attempts>1000){$("customMarchStatus").textContent="Frontier limit 必須為 10–1000";return}
   const faults=faultPriority.filter(id=>selectedDescriptorIds.has(id));
   if(!faults.length){$("customMarchStatus").textContent="請先選擇至少一個 Fault Descriptor";return}
-  const button=$("synthSearchBtn");button.disabled=true;button.textContent="搜尋中…";$("customMarchStatus").textContent=`正在搜尋 ${budget}N sequence…`;
+  const button=$("synthSearchBtn");button.disabled=true;button.textContent="搜尋中…";$("customMarchStatus").textContent=`TAGS 正從 1N 逐層擴展至最多 ${budget}N…`;
   try{
-    const response=await fetch("/api/synthesize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({budgetN:budget,attempts,faults,seed:611130})});
+    const response=await fetch("/api/synthesize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({maxN:budget,frontierLimit:attempts,faults})});
     const result=await response.json();if(!response.ok)throw new Error(result.error||"Synthesis failed");synthesisResult=result;renderSynthesisResults();
   }catch(error){$("customMarchStatus").textContent=`搜尋失敗：${error.message}`}
   finally{button.disabled=!engineOnline;button.textContent="搜尋最佳 March"}
 }
 function useSynthesisCandidate(index){
   const candidate=synthesisResult?.candidates?.[index];if(!candidate)return;
-  customMarch={...candidate,name:`Custom March ${candidate.usedN}N（自動搜尋）`};
+  customMarch={...candidate,name:`TAGS March ${candidate.usedN}N（自動搜尋）`};
   localStorage.setItem("sttmram-custom-march",JSON.stringify(customMarch));
   $("enableCustomMarch").disabled=false;$("enableCustomMarch").checked=true;
   $("customMarchStatus").textContent=`已選定 ${customMarch.name} · score ${Number(customMarch.score).toFixed(1)}`;
@@ -549,20 +551,29 @@ function renderBistBrowserCoverage(result,candidate){
   const colors={SAF:"#78a6d0",TF:"#8ab6a2",RDF:"#c99873",IRF:"#a996ce",CFwd:"#d29a9a",dIRF:"#7fb7bc",RTF:"#c3ad6e",TRDF:"#8d98a3",TWF:"#9b8f9d"};
   $("bistBrowserChart").innerHTML=`<div class="vertical-chart"><div class="vertical-axis"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div class="vertical-plot">${result.models.map(m=>{const value=m.coverage==null?null:Number(m.coverage),color=colors[m.id]||"#7899b7";return `<div class="vertical-column ${value==null?"na":""}" style="--fault-color:${color}" title="${escapeHtml(m.description)}"><strong>${value==null?"N/A":`${value.toFixed(1)}%`}</strong><div class="vertical-bar"><span style="height:${value==null?100:Math.max(0,Math.min(100,value))}%"></span></div><b>${escapeHtml(m.id)}</b><small>${value==null?"N/A":`${Number(m.detected).toLocaleString()}/${Number(m.injected).toLocaleString()}`}</small></div>`}).join("")}</div></div>`;
   const summary=result.summary;$("bistBrowserOverall").innerHTML=`<strong>${summary.weightedCoverage==null?"—":`${Number(summary.weightedCoverage).toFixed(2)}%`}</strong><small>full-geometry instance coverage</small>`;
-  $("bistBrowserSequence").innerHTML=`<div><span>Selected candidate</span><strong>${escapeHtml(candidate.name)}</strong><small>${candidate.usedN}N · canonical weighted score ${Number(candidate.score).toFixed(1)}% · ranking: priority-first</small></div><code>${escapeHtml(synthSequenceText(candidate.elements))}</code>`;
+  $("bistBrowserSequence").innerHTML=`<div><span>Selected TAGS candidate</span><strong>${escapeHtml(candidate.name)}</strong><small>${candidate.usedN}N · canonical score ${Number(candidate.score).toFixed(1)}% · final selection verified on full geometry</small></div><code>${escapeHtml(synthSequenceText(candidate.elements))}</code>`;
+}
+function compareFullGeometry(a,b,faults){
+  const map=result=>Object.fromEntries(result.models.map(model=>[model.id,model.coverage==null?-1:Number(model.coverage)])),am=map(a.result),bm=map(b.result);
+  for(const fault of faults){const delta=(bm[fault]??-1)-(am[fault]??-1);if(delta)return delta}
+  return Number(b.result.summary.weightedCoverage??-1)-Number(a.result.summary.weightedCoverage??-1)||a.candidate.usedN-b.candidate.usedN;
 }
 async function runBistBrowserSearch(){
   const c=readConfig(),budget=Number($("bistBrowserBudget").value),attempts=Number($("bistBrowserAttempts").value),faults=bistBrowserPriority.filter(id=>bistBrowserSelected.has(id));
-  if(!Number.isInteger(budget)||budget<1||budget>100){setBistBrowserStatus("N budget 必須為 1–100","error");return}
-  if(!Number.isInteger(attempts)||attempts<20||attempts>1000){setBistBrowserStatus("Search attempts 必須為 20–1000","error");return}
+  if(!Number.isInteger(budget)||budget<1||budget>100){setBistBrowserStatus("Maximum N 必須為 1–100","error");return}
+  if(!Number.isInteger(attempts)||attempts<10||attempts>1000){setBistBrowserStatus("Frontier limit 必須為 10–1000","error");return}
   if(!faults.length){setBistBrowserStatus("至少選擇一種 Fault","error");return}
-  const button=$("bistBrowserSearchBtn");button.disabled=true;saveBistBrowserSettings();setBistBrowserStatus("依 Fault priority 搜尋候選演算法…","busy");
+  const button=$("bistBrowserSearchBtn");button.disabled=true;saveBistBrowserSettings();setBistBrowserStatus(`TAGS 正從 1N 逐層擴展至最多 ${budget}N…`,"busy");
   try{
-    bistBrowserSynthesis=await callBistBrowserWorker("synthesize",{budgetN:budget,attempts,faults,seed:611130});
-    const candidate=bistBrowserSynthesis.candidates[0];if(!candidate)throw new Error("沒有可用候選演算法");
-    customMarch={...candidate,name:`Custom March ${candidate.usedN}N（BIST 自動搜尋）`};localStorage.setItem("sttmram-custom-march",JSON.stringify(customMarch));localStorage.setItem("sttmram-custom-march-enabled","true");$("enableCustomMarch").disabled=false;$("enableCustomMarch").checked=true;
-    setBistBrowserStatus(`已選定第一順位最佳候選，正在 ${c.depth} × ${c.dataWidth} geometry 注入…`,"busy");
-    const result=await callBistBrowserWorker("simulate",{memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:customMarch.name,operationComplexity:`${candidate.usedN}N`,sequence:candidate.elements,faults,couplingRelation:$("bistBrowserRelation").value,maxInstances:updateBistBrowserLimit(c)});
+    bistBrowserSynthesis=await callBistBrowserWorker("synthesize",{maxN:budget,frontierLimit:attempts,faults});
+    if(!bistBrowserSynthesis.candidates.length)throw new Error("沒有可用候選演算法");
+    const verified=[];
+    for(let index=0;index<bistBrowserSynthesis.candidates.length;index++){
+      const candidate=bistBrowserSynthesis.candidates[index];setBistBrowserStatus(`TAGS 已停在 ${bistBrowserSynthesis.stoppedAtN}N；正在用 ${c.depth} × ${c.dataWidth} 驗證候選 ${index+1}/${bistBrowserSynthesis.candidates.length}…`,"busy");
+      const result=await callBistBrowserWorker("simulate",{memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:candidate.name,operationComplexity:`${candidate.usedN}N`,sequence:candidate.elements,faults,couplingRelation:$("bistBrowserRelation").value,maxInstances:updateBistBrowserLimit(c)});verified.push({candidate,result});
+    }
+    verified.sort((a,b)=>compareFullGeometry(a,b,faults));const {candidate,result}=verified[0];
+    customMarch={...candidate,name:`TAGS March ${candidate.usedN}N（BIST 自動搜尋）`};localStorage.setItem("sttmram-custom-march",JSON.stringify(customMarch));localStorage.setItem("sttmram-custom-march-enabled","true");$("enableCustomMarch").disabled=false;$("enableCustomMarch").checked=true;
     renderBistBrowserCoverage(result,candidate);render();setBistBrowserStatus(`完整模擬完成：${Number(result.summary.detected).toLocaleString()} / ${Number(result.summary.injected).toLocaleString()} instances detected`,"done");
   }catch(error){setBistBrowserStatus(`搜尋失敗：${error.message}`,"error")}
   finally{button.disabled=false}
