@@ -3,6 +3,10 @@
 const assert=require("node:assert/strict");
 const engine=require("./fault-engine.js");
 
+assert.deepEqual(engine.descriptors.map(descriptor=>descriptor.id),[
+  "SAF","TF","SWF","RDF","TRDF","CFwd","WDF","TWF","IRF","RTF","DRF","dIRF","dRDF","dTF"
+]);
+
 const grouped=engine.groupMarchElements([
   {direction:"up",operations:[{kind:"w",pattern:"0"}]},
   {direction:"up",operations:[{kind:"r",pattern:"0"},{kind:"w",pattern:"1"}]},
@@ -50,6 +54,49 @@ const tf=engine.simulate({
   sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"w",pattern:"1"},{kind:"r",pattern:"1"},{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]
 });
 assert.equal(tf.models[0].coverage,100);
+
+const staticReadFaults=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["RDF","DRF"],maxInstances:1000,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"},{kind:"r",pattern:"0"},{kind:"w",pattern:"1"},{kind:"r",pattern:"1"},{kind:"r",pattern:"1"}]}]
+});
+assert.equal(staticReadFaults.models.find(model=>model.id==="RDF").coverage,100);
+assert.equal(staticReadFaults.models.find(model=>model.id==="DRF").coverage,100);
+
+const wdf=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["WDF"],maxInstances:1000,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"},{kind:"w",pattern:"1"},{kind:"w",pattern:"1"},{kind:"r",pattern:"1"}]}]
+});
+assert.equal(wdf.models[0].coverage,100);
+
+const swfWithoutTimedWrite=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["SWF"],maxInstances:1000,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"w",pattern:"1"},{kind:"r",pattern:"1"}]}]
+});
+assert.equal(swfWithoutTimedWrite.models[0].status,"not-applicable");
+assert.equal(swfWithoutTimedWrite.models[0].coverage,null);
+
+const swfWithTimedWrite=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["SWF"],maxInstances:1000,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"ws",pattern:"1"},{kind:"r",pattern:"1"},{kind:"ws",pattern:"0"},{kind:"r",pattern:"0"}]}]
+});
+assert.equal(swfWithTimedWrite.models[0].coverage,100);
+
+const dynamicReadAndTransition=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["dRDF","dTF"],maxInstances:1000,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"},{kind:"r",pattern:"0"},{kind:"w",pattern:"1"},{kind:"r",pattern:"1"},{kind:"r",pattern:"1"},{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]
+});
+assert.equal(dynamicReadAndTransition.models.find(model=>model.id==="dRDF").coverage,100);
+assert.equal(dynamicReadAndTransition.models.find(model=>model.id==="dTF").coverage,100);
+
+const dynamicAcrossElements=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["dRDF","dTF"],maxInstances:1000,
+  sequence:[
+    {direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]},
+    {direction:"up",operations:[{kind:"w",pattern:"1"},{kind:"r",pattern:"1"}]}
+  ]
+});
+assert.equal(dynamicAcrossElements.models.find(model=>model.id==="dRDF").coverage,0);
+assert.equal(dynamicAcrossElements.models.find(model=>model.id==="dTF").coverage,0);
 
 const rtfWithoutIdle=engine.simulate({
   memory:{depth:4,dataWidth:2},faults:["RTF"],maxInstances:1000,

@@ -5,31 +5,46 @@
 })(typeof self!=="undefined"?self:globalThis,function(){
   "use strict";
   const descriptors=[
-    {id:"SAF",name:"Stuck-at fault",description:"Victim cell 永久被固定為 0 或 1。",roles:["VTM"],relation:"single",supported:true,variants:[
+    {id:"SAF",name:"Stuck-at fault",category:"static",detection_mode:"march",description:"Victim cell 永久被固定為 0 或 1。",roles:["VTM"],relation:"single",supported:true,variants:[
       {id:"SA0",initial_state:0,trigger:{target:"VTM",operation:"write"},effect:{target:"VTM",state:"force0"}},
       {id:"SA1",initial_state:1,trigger:{target:"VTM",operation:"write"},effect:{target:"VTM",state:"force1"}}]},
-    {id:"TF",name:"Transition fault",description:"Victim cell 無法完成其中一個 write transition。",roles:["VTM"],relation:"single",supported:true,variants:[
+    {id:"TF",name:"Transition fault",category:"static",detection_mode:"march",description:"Victim cell 永久無法完成其中一個 write transition。",roles:["VTM"],relation:"single",supported:true,variants:[
       {id:"TF0to1",trigger:{target:"VTM",operation:"write",transition:"0->1"},effect:{target:"VTM",state:"hold"}},
       {id:"TF1to0",trigger:{target:"VTM",operation:"write",transition:"1->0"},effect:{target:"VTM",state:"hold"}}]},
-    {id:"RDF",name:"Read destructive fault",description:"Read 先回傳原值，之後翻轉 victim cell 狀態。",roles:["VTM"],relation:"single",supported:true,variants:[
-      {id:"RDF0",trigger:{target:"VTM",operation:"read",state:0},effect:{target:"VTM",state:"flip",timing:"after"}},
-      {id:"RDF1",trigger:{target:"VTM",operation:"read",state:1},effect:{target:"VTM",state:"flip",timing:"after"}}]},
-    {id:"IRF",name:"Incorrect read fault",description:"Stored data 不變，但 victim read output 被反相。",roles:["VTM"],relation:"single",supported:true,variants:[
-      {id:"IRF0",trigger:{target:"VTM",operation:"read",state:0},effect:{target:"VTM",read_output:"invert"}},
-      {id:"IRF1",trigger:{target:"VTM",operation:"read",state:1},effect:{target:"VTM",read_output:"invert"}}]},
-    {id:"CFwd",name:"Write-disturb coupling fault",description:"Aggressor 的 write transition 翻轉受限制的相鄰 victim cell。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true,variants:[
+    {id:"SWF",name:"Slow write fault",category:"static",detection_mode:"timed",description:"Cell 的 switching time 超過指定 write pulse；需要 at-speed／short-pulse write 才能與一般 TF 區分。",roles:["VTM"],relation:"single",supported:true,required_operation:"ws",not_applicable_reason:"一般功能 March 只有 untimed write；SWF 需要 at-speed／short-pulse write（ws）才能量測。",variants:[
+      {id:"SWF0to1",trigger:{target:"VTM",operation:"write_short",transition:"0->1"},effect:{target:"VTM",state:"hold"}},
+      {id:"SWF1to0",trigger:{target:"VTM",operation:"write_short",transition:"1->0"},effect:{target:"VTM",state:"hold"}}]},
+    {id:"RDF",name:"Read destructive fault",category:"static",detection_mode:"march",description:"Read 使 cell 翻轉，且本次 read 立即回傳錯誤值。",roles:["VTM"],relation:"single",supported:true,variants:[
+      {id:"RDF0",trigger:{target:"VTM",operation:"read",state:0},effect:{target:"VTM",state:"flip",timing:"before"}},
+      {id:"RDF1",trigger:{target:"VTM",operation:"read",state:1},effect:{target:"VTM",state:"flip",timing:"before"}}]},
+    {id:"TRDF",name:"Transient read disturb fault",category:"static",detection_mode:"stochastic",description:"Read 期間以小機率造成 cell 翻轉；需要 occurrence probability／trigger window。",roles:["VTM"],relation:"single",supported:false,unsupported_reason:"尚未定義 deterministic occurrence probability 或 trigger window。"},
+    {id:"CFwd",name:"Write-disturb coupling fault",category:"static",detection_mode:"march",description:"Aggressor 的 write transition 翻轉相鄰 victim cell。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true,variants:[
       {id:"CFwd01V0",trigger:{target:"AGR",operation:"write",transition:"0->1",requires:{VTM:0}},effect:{target:"VTM",state:"flip"}},
       {id:"CFwd01V1",trigger:{target:"AGR",operation:"write",transition:"0->1",requires:{VTM:1}},effect:{target:"VTM",state:"flip"}},
       {id:"CFwd10V0",trigger:{target:"AGR",operation:"write",transition:"1->0",requires:{VTM:0}},effect:{target:"VTM",state:"flip"}},
       {id:"CFwd10V1",trigger:{target:"AGR",operation:"write",transition:"1->0",requires:{VTM:1}},effect:{target:"VTM",state:"flip"}}]},
-    {id:"dIRF",name:"Dynamic incorrect read fault",description:"連續讀取四次後，victim read output 才會反相。",roles:["VTM"],relation:"single",supported:true,variants:[
-      {id:"dIRF0x4",trigger:{target:"VTM",operation:"read",state:0,repeat:4},effect:{target:"VTM",read_output:"invert"}},
-      {id:"dIRF1x4",trigger:{target:"VTM",operation:"read",state:1,repeat:4},effect:{target:"VTM",read_output:"invert"}}]},
-    {id:"RTF",name:"Retention fault",description:"需要明確 idle／retention interval 才能激發；一般只有 r/w 的 March 無法測試。",roles:["VTM"],relation:"single",supported:true,required_operation:"idle",not_applicable_reason:"目前 March sequence 只有 read/write，沒有 idle／retention interval，因此 RTF 無法被激發。",variants:[
+    {id:"WDF",name:"Write destructive fault",category:"static",detection_mode:"march",description:"對 cell 執行 non-transition write（w0/0 或 w1/1）時，反而破壞並翻轉其內容。",roles:["VTM"],relation:"single",supported:true,variants:[
+      {id:"WDF0",trigger:{target:"VTM",operation:"write",transition:"0->0"},effect:{target:"VTM",state:"flip"}},
+      {id:"WDF1",trigger:{target:"VTM",operation:"write",transition:"1->1"},effect:{target:"VTM",state:"flip"}}]},
+    {id:"TWF",name:"Transient write fault",category:"static",detection_mode:"stochastic",description:"Write switching 因熱擾動偶發失敗；需要 occurrence probability model。",roles:["VTM"],relation:"single",supported:false,unsupported_reason:"尚未定義 stochastic write-failure probability 或 pulse-width distribution。"},
+    {id:"IRF",name:"Incorrect read fault",category:"static",detection_mode:"march",description:"Stored data 不變，但 victim read output 被反相。",roles:["VTM"],relation:"single",supported:true,variants:[
+      {id:"IRF0",trigger:{target:"VTM",operation:"read",state:0},effect:{target:"VTM",read_output:"invert"}},
+      {id:"IRF1",trigger:{target:"VTM",operation:"read",state:1},effect:{target:"VTM",read_output:"invert"}}]},
+    {id:"RTF",name:"Retention fault",category:"static",detection_mode:"timed",description:"需要明確 idle／retention interval 才能激發；一般只有 r/w 的 March 無法測試。",roles:["VTM"],relation:"single",supported:true,required_operation:"idle",not_applicable_reason:"目前 March sequence 只有 read/write，沒有 idle／retention interval，因此 RTF 無法被激發。",variants:[
       {id:"RTF0",trigger:{target:"VTM",operation:"idle",state:0},effect:{target:"VTM",state:"flip"}},
       {id:"RTF1",trigger:{target:"VTM",operation:"idle",state:1},effect:{target:"VTM",state:"flip"}}]},
-    {id:"TRDF",name:"Transient read disturb fault",description:"機率性的 read disturbance；需要 occurrence model 才能主張 coverage。",roles:["VTM"],relation:"single",supported:false,unsupported_reason:"尚未定義 deterministic occurrence probability 或 trigger window。"},
-    {id:"TWF",name:"Transient write fault",description:"機率性的 write failure；需要 occurrence model 才能主張 coverage。",roles:["VTM"],relation:"single",supported:false,unsupported_reason:"尚未定義 deterministic occurrence probability 或 trigger window。"}
+    {id:"DRF",name:"Deceptive read destructive fault",category:"static",detection_mode:"march",description:"第一次 read 回傳正確值，之後 cell 才翻轉；必須再讀一次才能觀察。",roles:["VTM"],relation:"single",supported:true,variants:[
+      {id:"DRF0",trigger:{target:"VTM",operation:"read",state:0},effect:{target:"VTM",state:"flip",timing:"after"}},
+      {id:"DRF1",trigger:{target:"VTM",operation:"read",state:1},effect:{target:"VTM",state:"flip",timing:"after"}}]},
+    {id:"dIRF",name:"Dynamic incorrect read fault",category:"dynamic",detection_mode:"march",description:"同一 March element 內連續讀取四次後，victim read output 才會反相。",roles:["VTM"],relation:"single",supported:true,variants:[
+      {id:"dIRF0x4",trigger:{target:"VTM",operation:"read",state:0,repeat:4},effect:{target:"VTM",read_output:"invert"}},
+      {id:"dIRF1x4",trigger:{target:"VTM",operation:"read",state:1,repeat:4},effect:{target:"VTM",read_output:"invert"}}]},
+    {id:"dRDF",name:"Dynamic read destructive fault",category:"dynamic",detection_mode:"march",description:"同一 March element 內第二次連續 read 才使 cell 翻轉，且該次 read 回傳錯誤值。",roles:["VTM"],relation:"single",supported:true,variants:[
+      {id:"dRDF0x2",trigger:{target:"VTM",operation:"read",state:0,repeat:2},effect:{target:"VTM",state:"flip",timing:"before"}},
+      {id:"dRDF1x2",trigger:{target:"VTM",operation:"read",state:1,repeat:2},effect:{target:"VTM",state:"flip",timing:"before"}}]},
+    {id:"dTF",name:"Dynamic transition fault",category:"dynamic",detection_mode:"march",description:"同一 March element 內已有一次操作後，緊接的 transition write 才會失敗。",roles:["VTM"],relation:"single",supported:true,variants:[
+      {id:"dTF0to1",trigger:{target:"VTM",operation:"write",transition:"0->1",requires_predecessor:true},effect:{target:"VTM",state:"hold"}},
+      {id:"dTF1to0",trigger:{target:"VTM",operation:"write",transition:"1->0",requires_predecessor:true},effect:{target:"VTM",state:"hold"}}]}
   ];
   const byId=Object.fromEntries(descriptors.map(x=>[x.id,x]));
   const clone=x=>JSON.parse(JSON.stringify(x));
@@ -40,11 +55,12 @@
     if(relation==="adjacent_address"){for(let a=0;a<depth-1;a++)for(let b=0;b<width;b++){yield {AGR:[a,b],VTM:[a+1,b]};yield {AGR:[a+1,b],VTM:[a,b]}}return}
     throw new Error(`Unsupported address relation: ${relation}`);
   }
-  function matches(t,op,target,before,writes){
+  function matches(t,op,target,before,writes,hasPredecessor=false){
     if(t.operation!==op||(t.target||"VTM")!==target)return false;
+    if(t.requires_predecessor&&!hasPredecessor)return false;
     if(t.state!==undefined&&t.state!=="*"&&before[target]!==Number(t.state))return false;
     if(t.transition&&t.transition!=="*"){
-      if(op!=="write"||t.transition!==`${before[target]}->${writes[target]}`)return false;
+      if((op!=="write"&&op!=="write_short")||t.transition!==`${before[target]}->${writes[target]}`)return false;
     }
     return Object.entries(t.requires||{}).every(([r,v])=>before[r]===Number(v));
   }
@@ -93,10 +109,10 @@
         for(let oi=0;oi<(element.operations||[]).length;oi++){
           globalStep++; const operation=element.operations[oi],kind=operation.kind,pattern=String(operation.pattern||"0");
           const before={...faulty},writes={}; Object.keys(roles).forEach(r=>writes[r]=bit(pattern,roles[r][1]));
-          const target=trigger.target||"VTM",op=kind==="w"?"write":kind==="r"?"read":"idle";
-          const matched=local.includes(target)&&matches(trigger,op,target,before,writes);
+          const target=trigger.target||"VTM",op=kind==="w"?"write":kind==="ws"?"write_short":kind==="r"?"read":"idle";
+          const matched=local.includes(target)&&matches(trigger,op,target,before,writes,oi>0);
           repeats=matched?repeats+1:0; const fires=matched&&repeats>=need;
-          if(kind==="w"){
+          if(kind==="w"||kind==="ws"){
             local.forEach(r=>golden[r]=faulty[r]=writes[r]);
             if(fires){activated=true;stateEffect(faulty,effect.target||"VTM",effect.state,before)}
             continue;
@@ -106,10 +122,11 @@
             continue;
           }
           if(kind!=="r")throw new Error(`Unsupported operation: ${kind}`);
+          if(fires&&effect.timing==="before")stateEffect(faulty,effect.target||"VTM",effect.state,before);
           const faultyOut={},goldenOut={}; local.forEach(r=>{faultyOut[r]=faulty[r];goldenOut[r]=golden[r]});
           if(fires){activated=true;const outTarget=effect.target||"VTM";if(outTarget in faultyOut)faultyOut[outTarget]=outputEffect(faultyOut[outTarget],effect.read_output)}
           for(const role of local)if(faultyOut[role]!==goldenOut[role])return {detected:true,activated,witness:{instance:`${variant.id} · ${Object.entries(roles).map(([r,l])=>`${r}=A${l[0]}/B${l[1]}`).join(", ")}`,element:`M${ei}`,operation_index:oi,global_projected_step:globalStep,address,bit:roles[role][1],role,operation:`r${pattern}`,golden_output:goldenOut[role],faulty_output:faultyOut[role]},descriptorState:instanceDescriptorState(trigger,effect,golden,faulty,repeats,need,activated,true)};
-          if(fires)stateEffect(faulty,effect.target||"VTM",effect.state,before);
+          if(fires&&effect.timing!=="before")stateEffect(faulty,effect.target||"VTM",effect.state,before);
         }
       }
     }
@@ -152,14 +169,14 @@
   const candidateKey=e=>JSON.stringify(e);
   function normalizeReadPatterns(elements){
     const normalized=clone(elements);let current="0";
-    for(const element of normalized)for(const operation of element.operations){if(operation.kind==="w")current=operation.pattern;else if(operation.kind==="r")operation.pattern=current}
+    for(const element of normalized)for(const operation of element.operations){if(operation.kind==="w"||operation.kind==="ws")current=operation.pattern;else if(operation.kind==="r")operation.pattern=current}
     return normalized;
   }
   function patternBefore(elements,elementIndex,operationIndex=0){
     let pattern="0";
     for(let ei=0;ei<elements.length;ei++){
       const stop=ei===elementIndex?operationIndex:elements[ei].operations.length;
-      for(let oi=0;oi<stop;oi++)if(elements[ei].operations[oi].kind==="w")pattern=elements[ei].operations[oi].pattern;
+      for(let oi=0;oi<stop;oi++)if(elements[ei].operations[oi].kind==="w"||elements[ei].operations[oi].kind==="ws")pattern=elements[ei].operations[oi].pattern;
       if(ei===elementIndex)break;
     }
     return pattern;

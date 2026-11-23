@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.24.0" />
-  <link rel="stylesheet" href="help.css?v=2.24.0" />
+  <link rel="stylesheet" href="styles.css?v=2.25.0" />
+  <link rel="stylesheet" href="help.css?v=2.25.0" />
 </head>
 <body>
   <header class="topbar">
@@ -154,7 +154,7 @@
           </div>
           <div class="fault-sim-summary" id="faultCoverageSummary"></div>
           <div id="simulationMessage" class="simulation-message">尚未執行本機 fault simulation。</div>
-          <p class="coverage-note">Coverage 只採計可執行的 deterministic descriptors。沒有 occurrence model 的 TRDF／TWF 顯示 N/A，不以理論 mapping 冒充 instance coverage。</p>
+          <p class="coverage-note">Coverage 只採計可執行的 deterministic descriptors。SWF／RTF 需要額外 timing operation，TRDF／TWF 需要 occurrence model；條件不足時顯示 N/A，不混入 coverage 分母。</p>
         </section>
         <section class="code-export" id="codeExport" aria-labelledby="verilogOutputTitle">
           <div class="code-collapse-bar">
@@ -176,7 +176,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="fault-engine.js?v=2.24.0"></script>
-  <script src="app.js?v=2.24.0"></script>
+  <script src="fault-engine.js?v=2.25.0"></script>
+  <script src="app.js?v=2.25.0"></script>
 </body>
 </html>
