@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內使用 TAGS 搜尋 March test 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.27.0">
+  <link rel="stylesheet" href="styles.css?v=2.28.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.27</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.28</span></div>
   </header>
 
   <main class="sim-main">
@@ -40,10 +40,10 @@
         </div>
         <fieldset id="searchModePanel" class="coverage-search-controls"><legend>Custom March 搜尋</legend><div class="coverage-control-grid"><label>Maximum N<input id="simBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label><label>Frontier limit / N<input id="simAttempts" type="number" min="10" max="1000" step="10" value="60"><small>每層最多保留的 template 數</small></label></div></fieldset>
         <fieldset id="existingModePanel" class="coverage-search-controls existing-algorithm-panel" hidden><legend>已開發的演算法（可複選）</legend><div class="existing-algorithm-grid">
-          <label><input id="existingWom26" type="checkbox" checked><span><strong>WOM March 26N</strong><small>Yoon et al., EMACS 2016</small></span><input id="existingWom26Repeat" type="number" min="1" max="20" value="1" aria-label="WOM March 次數"></label>
-          <label><input id="existingDirf14" type="checkbox"><span><strong>dIRF March 14N</strong><small>Nair et al., ITC 2018</small></span><input id="existingDirf14Repeat" type="number" min="1" max="20" value="1" aria-label="dIRF March 次數"></label>
-          <label><input id="existingMarchC" type="checkbox"><span><strong>March C− 10N</strong><small>van de Goor, 1993</small></span><input id="existingMarchCRepeat" type="number" min="1" max="20" value="1" aria-label="March C− 次數"></label>
-          <label><input id="existingMarchCM" type="checkbox"><span><strong>March CM 7N</strong><small>Yang et al., 2023</small></span><input id="existingMarchCMRepeat" type="number" min="1" max="20" value="1" aria-label="March CM 次數"></label>
+          <label><input id="existingWom26" type="checkbox" checked><span><strong>WOM March 26N</strong><small>Yoon et al., EMACS 2016</small></span></label>
+          <label><input id="existingDirf14" type="checkbox"><span><strong>dIRF March 14N</strong><small>Nair et al., ITC 2018</small></span></label>
+          <label><input id="existingMarchC" type="checkbox"><span><strong>March C− 10N</strong><small>van de Goor, 1993</small></span></label>
+          <label><input id="existingMarchCM" type="checkbox"><span><strong>March CM 7N</strong><small>Yang et al., 2023</small></span></label>
         </div><small class="existing-mode-note">每個演算法會個別分析；複選時另加入一個「合併執行」候選供比較。</small></fieldset>
         <fieldset class="coverage-search-controls"><legend>Full geometry 驗證</legend><div class="coverage-control-grid"><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Auto instance max / fault<input id="simLimit" type="number" value="1" readonly aria-describedby="simLimitNote"><small id="simLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label></div></fieldset>
         <button id="searchBtn" class="primary coverage-search-button" type="button">執行 Descriptor TAGS 搜尋</button>
@@ -66,7 +66,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.27.0"></script>
-  <script src="fault-simulator.js?v=2.27.0"></script>
+  <script src="fault-engine.js?v=2.28.0"></script>
+  <script src="fault-simulator.js?v=2.28.0"></script>
 </body>
 </html>
