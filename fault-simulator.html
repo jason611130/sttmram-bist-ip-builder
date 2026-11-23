@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內使用 TAGS 搜尋 March test 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.22.0">
+  <link rel="stylesheet" href="styles.css?v=2.23.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.21</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.23</span></div>
   </header>
 
   <main class="sim-main">
     <section class="sim-hero">
-      <div><p class="eyebrow">BROWSER-BASED TAGS SYNTHESIS</p><h1>TAGS March 搜尋與 Fault Coverage</h1><p>從 1N 逐層擴展 March template，以 coverage improvement 與 dominance 剪枝；canonical 前五名再使用 datasheet geometry 驗證。</p></div>
+      <div><p class="eyebrow">FAULT-DESCRIPTOR PROGRESS TAGS</p><h1>Descriptor TAGS March 搜尋與 Fault Coverage</h1><p>從 1N 逐層擴展 March template；以 SETUP、PROGRESS、ACTIVATED、DETECTED 的 instance-level 進度剪枝，再用 datasheet geometry 驗證 detected coverage。</p></div>
       <div class="worker-badge"><span></span><strong>Web Worker</strong><small>計算時 UI 仍可操作</small></div>
     </section>
 
@@ -33,16 +33,16 @@
 
       <div class="result-pair sim-wide">
       <section class="coverage-results">
-        <div class="coverage-result-head"><div><p class="step">03 / FULL GEOMETRY RESULT</p><h2>Fault Coverage 總覽</h2><p>TAGS 搜尋後自動用 datasheet geometry 驗證前五名；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
-        <fieldset class="coverage-search-controls"><legend>TAGS March</legend><div class="coverage-control-grid"><label>Maximum N<input id="simBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label><label>Frontier limit / N<input id="simAttempts" type="number" min="10" max="1000" step="10" value="60"><small>每層最多保留的 template 數</small></label><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Auto instance max / fault<input id="simLimit" type="number" value="1" readonly aria-describedby="simLimitNote"><small id="simLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label></div></fieldset>
-        <button id="searchBtn" class="primary coverage-search-button" type="button">執行 TAGS 搜尋</button>
+        <div class="coverage-result-head"><div><p class="step">03 / FULL GEOMETRY RESULT</p><h2>Fault Coverage 總覽</h2><p>Descriptor TAGS 搜尋後自動用 datasheet geometry 驗證前五名；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
+        <fieldset class="coverage-search-controls"><legend>Descriptor TAGS March</legend><div class="coverage-control-grid"><label>Maximum N<input id="simBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label><label>Frontier limit / N<input id="simAttempts" type="number" min="10" max="1000" step="10" value="60"><small>每層最多保留的 template 數</small></label><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Auto instance max / fault<input id="simLimit" type="number" value="1" readonly aria-describedby="simLimitNote"><small id="simLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label></div></fieldset>
+        <button id="searchBtn" class="primary coverage-search-button" type="button">執行 Descriptor TAGS 搜尋</button>
         <div id="workerStatus" class="worker-status"><i></i><span>瀏覽器計算核心已就緒</span></div>
         <div id="faultChartGrid" class="fault-chart-grid"><p class="empty-state">按「搜尋最佳 March」後，coverage 會自動顯示在這裡。</p></div>
         <div id="coverageFoot" class="coverage-foot"></div>
       </section>
 
       <section class="candidate-panel">
-        <div class="panel-heading"><div><p class="step">04 / TAGS CANONICAL SEARCH</p><h2>候選演算法</h2><small>顯示逐層 TAGS 結果；最終候選會使用 full geometry 再排序。</small></div><div id="candidateMeta" class="mini-meta">尚未搜尋</div></div>
+        <div class="panel-heading"><div><p class="step">04 / DESCRIPTOR-PROGRESS SEARCH</p><h2>候選演算法</h2><small>D 為 detected coverage；P 為 descriptor progress。最終候選仍以 full geometry detected coverage 排序。</small></div><div id="candidateMeta" class="mini-meta">尚未搜尋</div></div>
         <div id="candidateList" class="candidate-list"></div>
       </section>
       </div>
@@ -55,7 +55,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.22.0"></script>
-  <script src="fault-simulator.js?v=2.22.0"></script>
+  <script src="fault-engine.js?v=2.23.0"></script>
+  <script src="fault-simulator.js?v=2.23.0"></script>
 </body>
 </html>
