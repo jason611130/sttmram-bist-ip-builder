@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="在瀏覽器內搜尋 Custom March 並計算 STT-MRAM fault coverage。">
+  <meta name="description" content="在瀏覽器內使用 TAGS 搜尋 March test 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.21.0">
+  <link rel="stylesheet" href="styles.css?v=2.22.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
@@ -16,7 +16,7 @@
 
   <main class="sim-main">
     <section class="sim-hero">
-      <div><p class="eyebrow">BROWSER-BASED FAULT SIMULATION</p><h1>Custom March 搜尋與 Fault Coverage</h1><p>計算直接在此網頁的背景執行緒完成，不需要 Python、localhost 或上傳 memory 資料。搜尋結果用 4×2 memory 排名；完整 coverage 則使用下方 datasheet geometry。</p></div>
+      <div><p class="eyebrow">BROWSER-BASED TAGS SYNTHESIS</p><h1>TAGS March 搜尋與 Fault Coverage</h1><p>從 1N 逐層擴展 March template，以 coverage improvement 與 dominance 剪枝；canonical 前五名再使用 datasheet geometry 驗證。</p></div>
       <div class="worker-badge"><span></span><strong>Web Worker</strong><small>計算時 UI 仍可操作</small></div>
     </section>
 
@@ -33,16 +33,16 @@
 
       <div class="result-pair sim-wide">
       <section class="coverage-results">
-        <div class="coverage-result-head"><div><p class="step">03 / FULL GEOMETRY RESULT</p><h2>Fault Coverage 總覽</h2><p>搜尋最佳 March 後自動用 datasheet geometry 更新；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
-        <fieldset class="coverage-search-controls"><legend>Custom March</legend><div class="coverage-control-grid"><label>N budget<input id="simBudget" type="number" min="1" max="100" value="12"><small>精確使用 1–100N</small></label><label>Search attempts<input id="simAttempts" type="number" min="20" max="1000" step="20" value="60"><small>候選產生次數</small></label><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Auto instance max / fault<input id="simLimit" type="number" value="1" readonly aria-describedby="simLimitNote"><small id="simLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label></div></fieldset>
-        <button id="searchBtn" class="primary coverage-search-button" type="button">搜尋最佳 March <span>→</span></button>
+        <div class="coverage-result-head"><div><p class="step">03 / FULL GEOMETRY RESULT</p><h2>Fault Coverage 總覽</h2><p>TAGS 搜尋後自動用 datasheet geometry 驗證前五名；N/A 不會混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
+        <fieldset class="coverage-search-controls"><legend>TAGS March</legend><div class="coverage-control-grid"><label>Maximum N<input id="simBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label><label>Frontier limit / N<input id="simAttempts" type="number" min="10" max="1000" step="10" value="60"><small>每層最多保留的 template 數</small></label><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Auto instance max / fault<input id="simLimit" type="number" value="1" readonly aria-describedby="simLimitNote"><small id="simLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label></div></fieldset>
+        <button id="searchBtn" class="primary coverage-search-button" type="button">執行 TAGS 搜尋</button>
         <div id="workerStatus" class="worker-status"><i></i><span>瀏覽器計算核心已就緒</span></div>
         <div id="faultChartGrid" class="fault-chart-grid"><p class="empty-state">按「搜尋最佳 March」後，coverage 會自動顯示在這裡。</p></div>
         <div id="coverageFoot" class="coverage-foot"></div>
       </section>
 
       <section class="candidate-panel">
-        <div class="panel-heading"><div><p class="step">04 / CANONICAL SEARCH</p><h2>候選演算法</h2><small>顯示 4×2 canonical weighted score；候選排名採 priority-first。</small></div><div id="candidateMeta" class="mini-meta">尚未搜尋</div></div>
+        <div class="panel-heading"><div><p class="step">04 / TAGS CANONICAL SEARCH</p><h2>候選演算法</h2><small>顯示逐層 TAGS 結果；最終候選會使用 full geometry 再排序。</small></div><div id="candidateMeta" class="mini-meta">尚未搜尋</div></div>
         <div id="candidateList" class="candidate-list"></div>
       </section>
       </div>
@@ -55,7 +55,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.21.0"></script>
-  <script src="fault-simulator.js?v=2.21.0"></script>
+  <script src="fault-engine.js?v=2.22.0"></script>
+  <script src="fault-simulator.js?v=2.22.0"></script>
 </body>
 </html>
