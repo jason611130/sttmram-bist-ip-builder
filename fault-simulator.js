@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const descriptors=FaultEngine.descriptors;
 let priority=descriptors.map(x=>x.id),selected=new Set(priority),synthesis=null,chosen=null,requestId=0;
 const pending=new Map();
-const worker=new Worker("fault-worker.js?v=2.28.0");
+const worker=new Worker("fault-worker.js?v=2.29.0");
 worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.ok?p.resolve(data.result):p.reject(new Error(data.error))};
 worker.onerror=error=>setStatus(`Worker 錯誤：${error.message}`,"error");
 function callWorker(type,payload){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload})})}
@@ -73,7 +73,7 @@ function setBusy(busy,label){$("searchBtn").disabled=busy;$("simulateBtn").disab
 function compareFullGeometry(a,b,faults){const map=result=>Object.fromEntries(result.models.map(model=>[model.id,model.coverage==null?-1:Number(model.coverage)])),am=map(a.result),bm=map(b.result);for(const fault of faults){const delta=(bm[fault]??-1)-(am[fault]??-1);if(delta)return delta}return Number(b.result.summary.weightedCoverage??-1)-Number(a.result.summary.weightedCoverage??-1)||a.candidate.usedN-b.candidate.usedN}
 async function analyzeExisting(c){
   const definitions=[...c.algorithms];
-  if(c.algorithms.length>1)definitions.push({name:`已選演算法合併（${c.algorithms.length}）`,sequence:c.algorithms.flatMap(algorithm=>algorithm.sequence)});
+  if(c.algorithms.length>1){const combinedSequence=c.algorithms.flatMap(algorithm=>algorithm.sequence);definitions.push({name:`已選演算法合併 ${FaultEngine.countN(combinedSequence)}N（${c.algorithms.length} 種）`,sequence:combinedSequence})}
   const analyzed=[];let elapsed=0;
   for(let index=0;index<definitions.length;index++){
     const definition=definitions[index];setStatus(`正在進行既有演算法 TAGS 分析 ${index+1}/${definitions.length}：${definition.name}`,"busy");
