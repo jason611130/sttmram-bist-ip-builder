@@ -29,4 +29,18 @@ const tf=engine.simulate({
 });
 assert.equal(tf.models[0].coverage,100);
 
+const rtfWithoutIdle=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["RTF"],maxInstances:1000,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]
+});
+assert.equal(rtfWithoutIdle.models[0].status,"not-applicable");
+assert.equal(rtfWithoutIdle.models[0].coverage,null);
+assert.equal(rtfWithoutIdle.summary.injected,0);
+
+const rtfWithIdle=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["RTF"],maxInstances:1000,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"idle",pattern:"0"},{kind:"r",pattern:"0"},{kind:"w",pattern:"1"},{kind:"idle",pattern:"1"},{kind:"r",pattern:"1"}]}]
+});
+assert.equal(rtfWithIdle.models[0].coverage,100);
+
 console.log("fault-engine descriptor-progress tests passed");

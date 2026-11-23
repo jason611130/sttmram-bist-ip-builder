@@ -7,7 +7,7 @@ let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = []
 let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
 let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
-const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.23.1");
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.23.2");
 bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
 bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
 function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
@@ -19,7 +19,7 @@ const faultUniverse = [
   {id:"IRF",name:"Incorrect read fault",type:"永久",description:"Cell 狀態正確，但 read output 回傳相反資料。",roles:["VTM"],relation:"single",supported:true},
   {id:"CFwd",name:"Write-disturb coupling",type:"永久",description:"AGR 的 write transition 擾動相鄰 VTM，使 victim 狀態翻轉。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true},
   {id:"dIRF",name:"Dynamic incorrect read",type:"動態",description:"必須連續讀取多次才會讓 victim read output 出錯。",roles:["VTM"],relation:"single",supported:true},
-  {id:"RTF",name:"Retention fault",type:"暫態",description:"Cell 在 idle／等待期間無法保持資料並發生翻轉。",roles:["VTM"],relation:"single",supported:true},
+  {id:"RTF",name:"Retention fault",type:"暫態",description:"需要 idle／retention interval；一般只有 read/write 的 March 無法激發。",roles:["VTM"],relation:"single",supported:false},
   {id:"TRDF",name:"Transient read disturb",type:"暫態",description:"Read 期間偶發擾動；沒有 occurrence model 時不能宣稱 deterministic coverage。",roles:["VTM"],relation:"single",supported:false},
   {id:"TWF",name:"Transient write fault",type:"暫態",description:"Write 偶發失敗；沒有 occurrence model 時不能宣稱 deterministic coverage。",roles:["VTM"],relation:"single",supported:false}
 ];

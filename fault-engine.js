@@ -25,7 +25,7 @@
     {id:"dIRF",name:"Dynamic incorrect read fault",description:"連續讀取四次後，victim read output 才會反相。",roles:["VTM"],relation:"single",supported:true,variants:[
       {id:"dIRF0x4",trigger:{target:"VTM",operation:"read",state:0,repeat:4},effect:{target:"VTM",read_output:"invert"}},
       {id:"dIRF1x4",trigger:{target:"VTM",operation:"read",state:1,repeat:4},effect:{target:"VTM",read_output:"invert"}}]},
-    {id:"RTF",name:"Retention fault",description:"明確 idle 操作後 victim state 翻轉；一般只有 r/w 的 March 不會活化。",roles:["VTM"],relation:"single",supported:true,variants:[
+    {id:"RTF",name:"Retention fault",description:"需要明確 idle／retention interval 才能激發；一般只有 r/w 的 March 無法測試。",roles:["VTM"],relation:"single",supported:true,required_operation:"idle",not_applicable_reason:"目前 March sequence 只有 read/write，沒有 idle／retention interval，因此 RTF 無法被激發。",variants:[
       {id:"RTF0",trigger:{target:"VTM",operation:"idle",state:0},effect:{target:"VTM",state:"flip"}},
       {id:"RTF1",trigger:{target:"VTM",operation:"idle",state:1},effect:{target:"VTM",state:"flip"}}]},
     {id:"TRDF",name:"Transient read disturb fault",description:"機率性的 read disturbance；需要 occurrence model 才能主張 coverage。",roles:["VTM"],relation:"single",supported:false,unsupported_reason:"尚未定義 deterministic occurrence probability 或 trigger window。"},
@@ -114,6 +114,7 @@
   }
   function simulateDescriptor(d,depth,width,elements,override,maxInstances,includeDescriptorStates=false){
     if(!d.supported)return {id:d.id,name:d.name,description:d.description,status:"unsupported",reason:d.unsupported_reason,injected:0,detected:0,undetected:0,coverage:null};
+    if(d.required_operation&&!elements.some(element=>(element.operations||[]).some(operation=>operation.kind===d.required_operation)))return {id:d.id,name:d.name,description:d.description,status:"not-applicable",reason:d.not_applicable_reason||`需要 ${d.required_operation} operation。`,injected:0,activated:0,detected:0,undetected:0,coverage:null};
     const relation=d.relation!=="single"&&override?override:d.relation;
     const maps=[...roleMaps(depth,width,relation)],total=maps.length*d.variants.length;
     if(total>maxInstances)return {id:d.id,name:d.name,description:d.description,status:"limit",reason:`${total.toLocaleString()} instances 超過 ${maxInstances.toLocaleString()} 上限。`,injected:total,activated:0,detected:0,undetected:total,coverage:null};
