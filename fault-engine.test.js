@@ -4,7 +4,7 @@ const assert=require("node:assert/strict");
 const engine=require("./fault-engine.js");
 
 assert.deepEqual(engine.descriptors.map(descriptor=>descriptor.id),[
-  "SAF","TF","SWF","RDF","TRDF","CFwd","WDF","TWF","IRF","RTF","DRF","dIRF","dRDF","dTF"
+  "SAF","TF","RDF","CFwd","WDF","IRF","DRF","dIRF","dRDF","dTF","RTF","TRDF","TWF","SWF"
 ]);
 
 const grouped=engine.groupMarchElements([

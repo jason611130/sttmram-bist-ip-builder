@@ -4,7 +4,7 @@
   root.FaultEngine=api;
 })(typeof self!=="undefined"?self:globalThis,function(){
   "use strict";
-  const descriptors=[
+  const descriptorDefinitions=[
     {id:"SAF",name:"Stuck-at fault",category:"static",detection_mode:"march",description:"Victim cell 永久被固定為 0 或 1。",roles:["VTM"],relation:"single",supported:true,variants:[
       {id:"SA0",initial_state:0,trigger:{target:"VTM",operation:"write"},effect:{target:"VTM",state:"force0"}},
       {id:"SA1",initial_state:1,trigger:{target:"VTM",operation:"write"},effect:{target:"VTM",state:"force1"}}]},
@@ -46,6 +46,8 @@
       {id:"dTF0to1",trigger:{target:"VTM",operation:"write",transition:"0->1",requires_predecessor:true},effect:{target:"VTM",state:"hold"}},
       {id:"dTF1to0",trigger:{target:"VTM",operation:"write",transition:"1->0",requires_predecessor:true},effect:{target:"VTM",state:"hold"}}]}
   ];
+  const descriptorOrder=["SAF","TF","RDF","CFwd","WDF","IRF","DRF","dIRF","dRDF","dTF","RTF","TRDF","TWF","SWF"];
+  const descriptors=descriptorOrder.map(id=>descriptorDefinitions.find(descriptor=>descriptor.id===id));
   const byId=Object.fromEntries(descriptors.map(x=>[x.id,x]));
   const clone=x=>JSON.parse(JSON.stringify(x));
   const bit=(p,b)=>p==="0"||p==="00"?0:p==="1"||p==="11"?1:p==="01"?(b&1):1-(b&1);

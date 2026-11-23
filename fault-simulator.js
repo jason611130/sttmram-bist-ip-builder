@@ -2,15 +2,16 @@ const $=id=>document.getElementById(id);
 const descriptors=FaultEngine.descriptors;
 let priority=descriptors.map(x=>x.id),selected=new Set(priority),synthesis=null,chosen=null,requestId=0;
 const pending=new Map();
-const worker=new Worker("fault-worker.js?v=2.25.0");
+const worker=new Worker("fault-worker.js?v=2.26.0");
 worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.ok?p.resolve(data.result):p.reject(new Error(data.error))};
 worker.onerror=error=>setStatus(`Worker 錯誤：${error.message}`,"error");
 function callWorker(type,payload){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload})})}
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=n=>Number(n||0).toLocaleString();
 function setStatus(text,state="ready"){$("workerStatus").className=`worker-status ${state}`;$('workerStatus').querySelector("span").textContent=text}
-function saveSettings(){localStorage.setItem("sttmram-simulator-settings",JSON.stringify({depth:+$("simDepth").value,width:+$("simWidth").value,budget:+$("simBudget").value,attempts:+$("simAttempts").value,relation:$("simRelation").value,priority,selected:[...selected]}))}
-function loadSettings(){try{const s=JSON.parse(localStorage.getItem("sttmram-simulator-settings"));if(!s)return;$("simDepth").value=s.depth||256;$("simWidth").value=s.width||32;$("simBudget").value=s.budget||12;$("simAttempts").value=s.attempts||60;$("simRelation").value=s.relation||"same_word_adjacent";const previousPriority=Array.isArray(s.priority)?s.priority:[];if(previousPriority.length)priority=[...previousPriority.filter(id=>descriptors.some(d=>d.id===id)),...descriptors.map(d=>d.id).filter(id=>!previousPriority.includes(id))];if(Array.isArray(s.selected)){selected=new Set(s.selected);descriptors.filter(d=>!previousPriority.includes(d.id)).forEach(d=>selected.add(d.id))}}catch{}}
+function saveSettings(){localStorage.setItem("sttmram-simulator-settings",JSON.stringify({depth:+$("simDepth").value,width:+$("simWidth").value,budget:+$("simBudget").value,attempts:+$("simAttempts").value,relation:$("simRelation").value,prioritySchema:2,priority,selected:[...selected]}))}
+function moveConditionalFaultsLast(ids){const tail=["RTF","TRDF","TWF","SWF"];return [...ids.filter(id=>!tail.includes(id)),...tail.filter(id=>ids.includes(id))]}
+function loadSettings(){try{const s=JSON.parse(localStorage.getItem("sttmram-simulator-settings"));if(!s)return;$("simDepth").value=s.depth||256;$("simWidth").value=s.width||32;$("simBudget").value=s.budget||12;$("simAttempts").value=s.attempts||60;$("simRelation").value=s.relation||"same_word_adjacent";const previousPriority=Array.isArray(s.priority)?s.priority:[];if(previousPriority.length)priority=[...previousPriority.filter(id=>descriptors.some(d=>d.id===id)),...descriptors.map(d=>d.id).filter(id=>!previousPriority.includes(id))];if(Number(s.prioritySchema||0)<2)priority=moveConditionalFaultsLast(priority);if(Array.isArray(s.selected)){selected=new Set(s.selected);descriptors.filter(d=>!previousPriority.includes(d.id)).forEach(d=>selected.add(d.id))}s.prioritySchema=2;s.priority=priority;s.selected=[...selected];localStorage.setItem("sttmram-simulator-settings",JSON.stringify(s))}catch{}}
 function descriptorInstances(d,depth,width,relation){
   if(!d.supported||d.required_operation)return 0;
   const activeRelation=d.relation!=="single"?relation:"single";

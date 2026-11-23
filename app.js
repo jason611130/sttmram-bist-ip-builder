@@ -7,7 +7,7 @@ let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = []
 let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
 let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
-const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.25.0");
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.26.0");
 bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
 bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
 function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
@@ -29,20 +29,24 @@ const faultUniverse = [
   {id:"dTF",name:"Dynamic transition fault",type:"Dynamic",description:"先有同 cell 操作後，緊接的 transition write 才會失敗。",roles:["VTM"],relation:"single",supported:true}
 ];
 
+function moveConditionalFaultsLast(ids){const tail=["RTF","TRDF","TWF","SWF"];return [...ids.filter(id=>!tail.includes(id)),...tail.filter(id=>ids.includes(id))]}
+
 function loadBistBrowserSettings(){
   try{
     const saved=JSON.parse(localStorage.getItem("sttmram-simulator-settings"));if(!saved)return;
     const previousPriority=Array.isArray(saved.priority)?saved.priority:[];
     if(previousPriority.length)bistBrowserPriority=[...previousPriority.filter(id=>FaultEngine.descriptors.some(d=>d.id===id)),...FaultEngine.descriptors.map(d=>d.id).filter(id=>!previousPriority.includes(id))];
+    if(Number(saved.prioritySchema||0)<2)bistBrowserPriority=moveConditionalFaultsLast(bistBrowserPriority);
     if(Array.isArray(saved.selected)){bistBrowserSelected=new Set(saved.selected);FaultEngine.descriptors.filter(d=>!previousPriority.includes(d.id)).forEach(d=>bistBrowserSelected.add(d.id))}
     if(saved.budget)$("bistBrowserBudget").value=saved.budget;
     if(saved.attempts)$("bistBrowserAttempts").value=saved.attempts;
     if(saved.relation)$("bistBrowserRelation").value=saved.relation;
+    Object.assign(saved,{prioritySchema:2,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
   }catch{}
 }
 function saveBistBrowserSettings(){
   let saved={};try{saved=JSON.parse(localStorage.getItem("sttmram-simulator-settings"))||{}}catch{}
-  Object.assign(saved,{budget:+$("bistBrowserBudget").value,attempts:+$("bistBrowserAttempts").value,relation:$("bistBrowserRelation").value,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});
+  Object.assign(saved,{budget:+$("bistBrowserBudget").value,attempts:+$("bistBrowserAttempts").value,relation:$("bistBrowserRelation").value,prioritySchema:2,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});
   localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
 }
 function bistDescriptorInstances(d,depth,width,relation){
