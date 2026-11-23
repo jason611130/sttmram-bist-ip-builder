@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.23.2" />
-  <link rel="stylesheet" href="help.css?v=2.23.2" />
+  <link rel="stylesheet" href="styles.css?v=2.24.0" />
+  <link rel="stylesheet" href="help.css?v=2.24.0" />
 </head>
 <body>
   <header class="topbar">
@@ -46,7 +46,7 @@
         </div>
         <div id="algoNote" class="note"></div>
         <section class="custom-march-builder" aria-labelledby="customMarchTitle" hidden>
-          <div class="custom-march-head"><div><p class="step">DESCRIPTOR TAGS SEARCH</p><h3 id="customMarchTitle">Fault-Descriptor Progress TAGS</h3><p>從 1N 逐層擴展 March template；SETUP、PROGRESS、ACTIVATED 或 DETECTED 任一 instance 前進都視為有效貢獻。</p></div><span>LOCAL ENGINE</span></div>
+          <div class="custom-march-head"><div><p class="step">STRICT-PRIORITY TAGS SEARCH</p><h3 id="customMarchTitle">Fault-Descriptor Progress TAGS</h3><p>依 fault 排序逐一搜尋；目前目標的 DETECTED、ACTIVATED、PROGRESS、SETUP 都優先於下一個 fault。</p></div><span>LOCAL ENGINE</span></div>
           <div class="custom-march-controls">
             <label><span>Maximum N</span><input id="synthBudget" type="number" min="1" max="100" value="12"><small>達 100% coverage 或此上限時停止</small></label>
             <label><span>Frontier limit / N</span><input id="synthAttempts" type="number" min="10" max="1000" step="10" value="60"><small>每一層最多保留的 template 數</small></label>
@@ -110,7 +110,7 @@
           <p class="coverage-note">此處計算的是 survey 故障模型「種類聯集」，不是 fault-injection instance coverage。相同 fault 被多個演算法涵蓋時只計一次。</p>
         </section>
         <section class="bist-browser-coverage coverage-results" aria-labelledby="bistBrowserCoverageTitle">
-          <div class="coverage-result-head"><div><p class="step">03 / DESCRIPTOR TAGS SEARCH</p><h2 id="bistBrowserCoverageTitle">Descriptor TAGS March 與 Fault Coverage</h2><p>以 fault descriptor 進度保留 setup 與 dynamic trigger；canonical 前五名再以 BIST Memory geometry 的 detected coverage 選出最佳結果。</p></div><div id="bistBrowserOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
+          <div class="coverage-result-head"><div><p class="step">03 / STRICT-PRIORITY TAGS SEARCH</p><h2 id="bistBrowserCoverageTitle">Descriptor TAGS March 與 Fault Coverage</h2><p>最上方 fault 會先完成 detection 與 trigger progress；canonical 前五名再以 BIST Memory geometry 的 detected coverage 選出最佳結果。</p></div><div id="bistBrowserOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
           <fieldset class="coverage-search-controls"><legend>Custom March</legend><div class="coverage-control-grid">
             <label>Maximum N<input id="bistBrowserBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label>
             <label>Frontier limit / N<input id="bistBrowserAttempts" type="number" min="10" max="1000" step="10" value="60"><small>每一層最多保留的 template 數</small></label>
@@ -176,7 +176,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="fault-engine.js?v=2.23.2"></script>
-  <script src="app.js?v=2.23.2"></script>
+  <script src="fault-engine.js?v=2.24.0"></script>
+  <script src="app.js?v=2.24.0"></script>
 </body>
 </html>

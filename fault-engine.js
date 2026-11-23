@@ -84,6 +84,9 @@
     const addresses=[...new Set(Object.values(roles).map(x=>x[0]))].sort((a,b)=>a-b);
     const at={}; Object.entries(roles).forEach(([r,l])=>(at[l[0]]||(at[l[0]]=[])).push(r));
     for(let ei=0;ei<elements.length;ei++){
+      // A new March element is a new full-memory pass. Dynamic consecutive-access
+      // triggers must restart here because other addresses were visited in between.
+      if(need>1)repeats=0;
       const element=elements[ei],ordered=element.direction==="down"?[...addresses].reverse():addresses;
       for(const address of ordered){
         const local=at[address];
@@ -142,13 +145,9 @@
   const patterns=["0","1","01","10"],directions=["up","down"];
   const countN=e=>e.reduce((s,x)=>s+x.operations.length,0);
   function groupMarchElements(elements){
-    const grouped=[];
-    for(const element of elements||[]){
-      const last=grouped[grouped.length-1],operations=(element.operations||[]).map(operation=>({...operation}));
-      if(last&&last.direction===element.direction)last.operations.push(...operations);
-      else grouped.push({direction:element.direction,operations});
-    }
-    return grouped;
+    // Preserve the real March element boundaries. Operations that are already in
+    // one element share one pair of parentheses; equal directions alone do not.
+    return (elements||[]).map(element=>({direction:element.direction,operations:(element.operations||[]).map(operation=>({...operation}))}));
   }
   const candidateKey=e=>JSON.stringify(e);
   function normalizeReadPatterns(elements){
@@ -167,18 +166,21 @@
   }
   function expandTemplate(elements){
     const out=[],push=value=>out.push(normalizeReadPatterns(value));
-    for(let pos=1;pos<=elements.length;pos++){
-      const expected=patternBefore(elements,pos,0);
-      for(const direction of directions){
-        const read=clone(elements);read.splice(pos,0,{direction,operations:[{kind:"r",pattern:expected}]});push(read);
-        for(const pattern of patterns){const write=clone(elements);write.splice(pos,0,{direction,operations:[{kind:"w",pattern}]});push(write)}
-      }
-    }
+    // Extend an existing pair of parentheses first. This makes repeated-access
+    // descriptors (for example dIRF r0×4) reachable before the evaluation cap
+    // is consumed by candidates that start unrelated full-memory passes.
     for(let ei=0;ei<elements.length;ei++){
       const first=patternBefore(elements,ei,0),last=patternBefore(elements,ei,elements[ei].operations.length);
       for(const [where,expected] of [["first",first],["last",last]]){
         const read=clone(elements);where==="first"?read[ei].operations.unshift({kind:"r",pattern:expected}):read[ei].operations.push({kind:"r",pattern:expected});push(read);
         for(const pattern of patterns){const write=clone(elements);where==="first"?write[ei].operations.unshift({kind:"w",pattern}):write[ei].operations.push({kind:"w",pattern});push(write)}
+      }
+    }
+    for(let pos=1;pos<=elements.length;pos++){
+      const expected=patternBefore(elements,pos,0);
+      for(const direction of directions){
+        const read=clone(elements);read.splice(pos,0,{direction,operations:[{kind:"r",pattern:expected}]});push(read);
+        for(const pattern of patterns){const write=clone(elements);write.splice(pos,0,{direction,operations:[{kind:"w",pattern}]});push(write)}
       }
     }
     return out;
@@ -194,13 +196,18 @@
     return {score:total?Math.round(sum/total*1e6)/1e6:0,detectedModels,coverages,priorityVector:faults.map(id=>coverages[id]==null?-1:Number(coverages[id])),descriptorProgress,descriptorVector:faults.map(id=>descriptorProgress[id]??-1),descriptorStates,stateCounts,stateVector,canonicalSummary:result.summary};
   }
   function compareCandidates(a,b,faults){
-    for(let i=0;i<faults.length;i++){const delta=b.priorityVector[i]-a.priorityVector[i];if(delta)return delta}
-    for(let i=0;i<faults.length;i++){const delta=b.descriptorVector[i]-a.descriptorVector[i];if(delta)return delta}
+    // Strict priority: finish each fault's detected/progress objective before the
+    // next fault is allowed to influence ranking.
+    for(let i=0;i<faults.length;i++){
+      const detectedDelta=b.priorityVector[i]-a.priorityVector[i];if(detectedDelta)return detectedDelta;
+      const progressDelta=b.descriptorVector[i]-a.descriptorVector[i];if(progressDelta)return progressDelta;
+    }
     return b.score-a.score||b.detectedModels-a.detectedModels||futurePotential(b.elements)-futurePotential(a.elements)||a.usedN-b.usedN;
   }
   function futurePotential(elements){
     let activePattern=null,readRun=0,transitions=0,lastWrite=null,directionChanges=0,lastDirection=null;const readProgress={};
     for(const element of elements){
+      readRun=0;
       if(lastDirection&&lastDirection!==element.direction)directionChanges++;lastDirection=element.direction;
       for(const op of element.operations){
         if(op.kind==="r"&&activePattern!==null){readRun++;readProgress[activePattern]=Math.max(readProgress[activePattern]||0,readRun)}
@@ -220,8 +227,8 @@
     return better;
   }
   function structuralSignature(candidate){
-    const flat=candidate.elements.flatMap(e=>e.operations.map(o=>`${e.direction[0]}${o.kind}${o.pattern}`));
-    return `${candidate.stateVector.join(".")}|${flat.slice(-6).join(",")}`;
+    const structure=candidate.elements.map(e=>`${e.direction[0]}(${e.operations.map(o=>`${o.kind}${o.pattern}`).join(",")})`);
+    return `${candidate.stateVector.join(".")}|${structure.slice(-6).join(";")}`;
   }
   function pruneLevel(candidates,limit,faults){
     const ordered=[...candidates].sort((a,b)=>compareCandidates(a,b,faults)),kept=[],signatures=new Set();
@@ -239,6 +246,20 @@
   function descriptorContribution(candidate,parent){
     if(!parent||candidate.stateVector.length!==parent.stateVector.length)return true;
     return candidate.stateVector.some((value,index)=>value>parent.stateVector[index]);
+  }
+  function descriptorContributionForFault(candidate,parentStates,faultId){
+    const current=candidate.descriptorStates[faultId]||[],previous=parentStates?.[faultId]||[];
+    if(current.length!==previous.length)return current.length>0;
+    return current.some((value,index)=>value>previous[index]);
+  }
+  function activeTargetFault(candidate,faults){
+    if(!candidate)return null;
+    for(let i=0;i<faults.length;i++){
+      const coverage=candidate.priorityVector[i],progress=candidate.descriptorVector[i];
+      if(coverage<0&&progress<0)continue;
+      if(coverage<100)return faults[i];
+    }
+    return null;
   }
   function minimizeCandidate(candidate,faults){
     if(!fullCoverage(candidate))return candidate;
@@ -262,10 +283,11 @@
     const roots=[];for(const pattern of patterns)for(const direction of directions)roots.push([{direction,operations:[{kind:"w",pattern}]}]);
     frontier=roots.map(elements=>({usedN:1,elements,...evaluate(elements,faults)}));evaluatedCandidates+=frontier.length;
     frontier=pruneLevel(frontier,frontierLimit,faults);
-    history.push({n:1,generated:roots.length,evaluated:roots.length,contributed:frontier.length,improved:frontier.length,kept:frontier.length,bestScore:frontier[0]?.score??0,bestDescriptorProgress:frontier[0]?.descriptorVector??[],fullCoverage:frontier.some(fullCoverage)});
+    history.push({n:1,generated:roots.length,evaluated:roots.length,contributed:frontier.length,targetContributed:frontier.length,improved:frontier.length,kept:frontier.length,activeFault:activeTargetFault(frontier[0],faults),bestScore:frontier[0]?.score??0,bestDescriptorProgress:frontier[0]?.descriptorVector??[],fullCoverage:frontier.some(fullCoverage)});
     let stoppedAtN=1;
     if(frontier.some(fullCoverage))stopReason="full-coverage";
     for(let n=2;n<=maxN&&stopReason!=="full-coverage";n++){
+      const targetFault=activeTargetFault(frontier[0],faults);
       const perParent=frontier.map(parent=>expandTemplate(parent.elements).map(elements=>({elements,parent}))),seen=new Set(),generated=[];
       const evaluationCap=Math.max(frontierLimit,frontierLimit*10);
       for(let round=0;generated.length<evaluationCap;round++){
@@ -275,18 +297,20 @@
         }
         if(!added)break;
       }
-      const assessed=generated.map(({elements,parent})=>({usedN:n,elements,parentVector:parent.priorityVector,parentStateVector:parent.stateVector,...evaluate(elements,faults)}));evaluatedCandidates+=assessed.length;
+      const assessed=generated.map(({elements,parent})=>({usedN:n,elements,parentVector:parent.priorityVector,parentStateVector:parent.stateVector,parentDescriptorStates:parent.descriptorStates,...evaluate(elements,faults)}));evaluatedCandidates+=assessed.length;
       const contributed=assessed.filter(candidate=>descriptorContribution(candidate,{stateVector:candidate.parentStateVector}));
-      const pool=contributed.length?contributed:assessed;
+      const targetContributed=targetFault?assessed.filter(candidate=>descriptorContributionForFault(candidate,candidate.parentDescriptorStates,targetFault)):[];
+      const exploration=contributed.filter(candidate=>!targetContributed.includes(candidate)).sort((a,b)=>compareCandidates(a,b,faults)).slice(0,Math.ceil(frontierLimit*.25));
+      const pool=targetContributed.length?[...targetContributed,...exploration]:contributed.length?contributed:assessed;
       frontier=pruneLevel(pool,frontierLimit,faults);stoppedAtN=n;
-      const complete=frontier.some(fullCoverage);history.push({n,generated:generated.length,evaluated:assessed.length,contributed:contributed.length,improved:contributed.length,kept:frontier.length,bestScore:frontier[0]?.score??0,bestDescriptorProgress:frontier[0]?.descriptorVector??[],fullCoverage:complete});
+      const complete=frontier.some(fullCoverage);history.push({n,generated:generated.length,evaluated:assessed.length,contributed:contributed.length,targetContributed:targetContributed.length,improved:contributed.length,kept:frontier.length,activeFault:activeTargetFault(frontier[0],faults),bestScore:frontier[0]?.score??0,bestDescriptorProgress:frontier[0]?.descriptorVector??[],fullCoverage:complete});
       if(complete)stopReason="full-coverage";
       if(!frontier.length){stopReason="frontier-empty";break}
     }
     let ranked=[...frontier].sort((a,b)=>compareCandidates(a,b,faults)).slice(0,5);
     ranked=ranked.map(candidate=>minimizeCandidate(candidate,faults)).sort((a,b)=>compareCandidates(a,b,faults));
     const top=ranked.map((x,i)=>({...x,rank:i+1,name:`Descriptor TAGS March ${x.usedN}N · Candidate ${i+1}`}));
-    return {schema:"sttmram-tags-synthesis/v3",method:"Fault-Descriptor Progress TAGS",maxN,frontierLimit,stoppedAtN,stopReason,history,canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,rankingMode:"detected-coverage-then-descriptor-progress",candidates:top,evaluatedCandidates,elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6,note:"由 1N 逐層擴展 March template；SETUP、PROGRESS、ACTIVATED 或 DETECTED 任一 instance 前進皆視為貢獻，instance-level dominance 剪枝後，以 detected coverage 完成判定並做 full-geometry 驗證。"};
+    return {schema:"sttmram-tags-synthesis/v4",method:"Strict-Priority Fault-Descriptor TAGS",maxN,frontierLimit,stoppedAtN,stopReason,history,canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,rankingMode:"strict-staged-detected-then-progress",activeTargetFault:activeTargetFault(top[0],faults),candidates:top,evaluatedCandidates,elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6,note:"依 fault priority 逐一完成 DETECTED、ACTIVATED、PROGRESS、SETUP 目標；dynamic repeated access 只有在同一 March element 內才連續計數，最後再做 full-geometry detected coverage 驗證。"};
   }
   return {descriptors:clone(descriptors),simulate,synthesize,countN,groupMarchElements};
 });

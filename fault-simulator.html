@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內使用 TAGS 搜尋 March test 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.23.2">
+  <link rel="stylesheet" href="styles.css?v=2.24.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.23</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.24</span></div>
   </header>
 
   <main class="sim-main">
     <section class="sim-hero">
-      <div><p class="eyebrow">FAULT-DESCRIPTOR PROGRESS TAGS</p><h1>Descriptor TAGS March 搜尋與 Fault Coverage</h1><p>從 1N 逐層擴展 March template；以 SETUP、PROGRESS、ACTIVATED、DETECTED 的 instance-level 進度剪枝，再用 datasheet geometry 驗證 detected coverage。</p></div>
+      <div><p class="eyebrow">STRICT-PRIORITY DESCRIPTOR TAGS</p><h1>Descriptor TAGS March 搜尋與 Fault Coverage</h1><p>依拖曳順序逐一完成 fault；目前目標的 DETECTED、ACTIVATED、PROGRESS、SETUP 都會先於下一個 fault 比較，再用 datasheet geometry 驗證 detected coverage。</p></div>
       <div class="worker-badge"><span></span><strong>Web Worker</strong><small>計算時 UI 仍可操作</small></div>
     </section>
 
@@ -27,7 +27,7 @@
       </aside>
 
       <section class="priority-panel">
-        <div class="panel-heading"><div><p class="step">02 / PRIORITY</p><h2>Fault Descriptors</h2></div><small>拖曳 ⠿ 排序；越上方越先比較 coverage。</small></div>
+        <div class="panel-heading"><div><p class="step">02 / STRICT PRIORITY</p><h2>Fault Descriptors</h2></div><small>拖曳 ⠿ 排序；越上方越先完成 detection 與 descriptor progress。</small></div>
         <div id="faultPriorityList" class="priority-list"></div>
       </section>
 
@@ -42,7 +42,7 @@
       </section>
 
       <section class="candidate-panel">
-        <div class="panel-heading"><div><p class="step">04 / DESCRIPTOR-PROGRESS SEARCH</p><h2>候選演算法</h2><small>D 為 detected coverage；P 為 descriptor progress。最終候選仍以 full geometry detected coverage 排序。</small></div><div id="candidateMeta" class="mini-meta">尚未搜尋</div></div>
+        <div class="panel-heading"><div><p class="step">04 / STRICT-STAGED SEARCH</p><h2>候選演算法</h2><small>D 為 detected coverage；P 為 descriptor progress。完成目前優先 fault 後才切換下一個。</small></div><div id="candidateMeta" class="mini-meta">尚未搜尋</div></div>
         <div id="candidateList" class="candidate-list"></div>
       </section>
       </div>
@@ -55,7 +55,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.23.2"></script>
-  <script src="fault-simulator.js?v=2.23.2"></script>
+  <script src="fault-engine.js?v=2.24.0"></script>
+  <script src="fault-simulator.js?v=2.24.0"></script>
 </body>
 </html>
