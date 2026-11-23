@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內使用 TAGS 搜尋 March test 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.29.0">
+  <link rel="stylesheet" href="styles.css?v=2.30.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.29</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.30</span></div>
   </header>
 
   <main class="sim-main">
@@ -44,7 +44,7 @@
           <label><input id="existingDirf14" type="checkbox"><span><strong>dIRF March 14N</strong><small>Nair et al., ITC 2018</small></span></label>
           <label><input id="existingMarchC" type="checkbox"><span><strong>March C− 10N</strong><small>van de Goor, 1993</small></span></label>
           <label><input id="existingMarchCM" type="checkbox"><span><strong>March CM 7N</strong><small>Yang et al., 2023</small></span></label>
-        </div><small class="existing-mode-note">每個演算法會個別分析；複選時另加入一個「合併執行」候選供比較。</small></fieldset>
+        </div><small class="existing-mode-note">每個演算法會個別分析；複選時另產生 coverage-preserving 優化合併，移除不提升 fault coverage 的 operation。</small></fieldset>
         <fieldset class="coverage-search-controls"><legend>Full geometry 驗證</legend><div class="coverage-control-grid"><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Auto instance max / fault<input id="simLimit" type="number" value="1" readonly aria-describedby="simLimitNote"><small id="simLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label></div></fieldset>
         <button id="searchBtn" class="primary coverage-search-button" type="button">執行 Descriptor TAGS 搜尋</button>
         <div id="workerStatus" class="worker-status"><i></i><span>瀏覽器計算核心已就緒</span></div>
@@ -66,7 +66,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.29.0"></script>
-  <script src="fault-simulator.js?v=2.29.0"></script>
+  <script src="fault-engine.js?v=2.30.0"></script>
+  <script src="fault-simulator.js?v=2.30.0"></script>
 </body>
 </html>

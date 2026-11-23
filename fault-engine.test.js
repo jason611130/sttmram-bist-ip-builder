@@ -114,6 +114,15 @@ assert.equal(fixedAnalysis.candidate.usedN,10);
 assert.equal(fixedAnalysis.candidate.coverages.SAF,100);
 assert.equal(fixedAnalysis.candidate.coverages.TF,100);
 
+const optimized=engine.optimize({faults:["SAF","TF"],sequence:[{direction:"up",operations:[
+  {kind:"w",pattern:"0"},{kind:"r",pattern:"0"},{kind:"w",pattern:"0"},{kind:"r",pattern:"0"},
+  {kind:"w",pattern:"1"},{kind:"r",pattern:"1"},{kind:"w",pattern:"1"},{kind:"r",pattern:"1"}
+]}]});
+assert.equal(optimized.schema,"sttmram-tags-optimization/v1");
+assert.ok(optimized.usedN<optimized.originalN);
+assert.equal(optimized.candidate.coverages.SAF,100);
+assert.equal(optimized.candidate.coverages.TF,50);
+
 const rtfWithoutIdle=engine.simulate({
   memory:{depth:4,dataWidth:2},faults:["RTF"],maxInstances:1000,
   sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]

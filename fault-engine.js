@@ -337,5 +337,19 @@
     const metrics=evaluate(elements,faults),usedN=countN(elements);
     return {schema:"sttmram-tags-analysis/v1",method:"Fixed-Algorithm Fault-Descriptor TAGS Analysis",canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,candidate:{...metrics,rank:1,name:request.name||`Existing March ${usedN}N`,usedN,elements},elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6};
   }
-  return {descriptors:clone(descriptors),simulate,synthesize,analyze,countN,groupMarchElements};
+  function optimize(request){
+    const started=performance.now(),faults=request.faults||descriptors.map(x=>x.id);let elements=groupMarchElements(request.sequence||request.elements||[]);
+    if(!elements.length)throw new Error("Optimization sequence 不可為空");
+    const originalN=countN(elements),baseline=evaluate(elements,faults),preserves=metrics=>faults.every(id=>baseline.coverages[id]==null||Number(metrics.coverages[id])>=Number(baseline.coverages[id]));
+    let removedN=0,passes=0,changed=true;
+    while(changed){changed=false;passes++;
+      outer:for(let ei=elements.length-1;ei>=0;ei--)for(let oi=elements[ei].operations.length-1;oi>=0;oi--){
+        let trial=clone(elements);trial[ei].operations.splice(oi,1);if(!trial[ei].operations.length)trial.splice(ei,1);if(!trial.length)continue;trial=normalizeReadPatterns(trial);
+        const metrics=evaluate(trial,faults);if(preserves(metrics)){elements=trial;removedN++;changed=true;break outer}
+      }
+    }
+    const metrics=evaluate(elements,faults),usedN=countN(elements);
+    return {schema:"sttmram-tags-optimization/v1",method:"Coverage-Preserving Greedy Irredundancy",canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,originalN,usedN,removedN,passes,candidate:{...metrics,rank:1,name:request.name||`Optimized March ${usedN}N`,usedN,elements,originalN,removedN},elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6};
+  }
+  return {descriptors:clone(descriptors),simulate,synthesize,analyze,optimize,countN,groupMarchElements};
 });

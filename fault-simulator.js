@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const descriptors=FaultEngine.descriptors;
 let priority=descriptors.map(x=>x.id),selected=new Set(priority),synthesis=null,chosen=null,requestId=0;
 const pending=new Map();
-const worker=new Worker("fault-worker.js?v=2.29.0");
+const worker=new Worker("fault-worker.js?v=2.30.0");
 worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.ok?p.resolve(data.result):p.reject(new Error(data.error))};
 worker.onerror=error=>setStatus(`Worker 錯誤：${error.message}`,"error");
 function callWorker(type,payload){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload})})}
@@ -73,11 +73,13 @@ function setBusy(busy,label){$("searchBtn").disabled=busy;$("simulateBtn").disab
 function compareFullGeometry(a,b,faults){const map=result=>Object.fromEntries(result.models.map(model=>[model.id,model.coverage==null?-1:Number(model.coverage)])),am=map(a.result),bm=map(b.result);for(const fault of faults){const delta=(bm[fault]??-1)-(am[fault]??-1);if(delta)return delta}return Number(b.result.summary.weightedCoverage??-1)-Number(a.result.summary.weightedCoverage??-1)||a.candidate.usedN-b.candidate.usedN}
 async function analyzeExisting(c){
   const definitions=[...c.algorithms];
-  if(c.algorithms.length>1){const combinedSequence=c.algorithms.flatMap(algorithm=>algorithm.sequence);definitions.push({name:`已選演算法合併 ${FaultEngine.countN(combinedSequence)}N（${c.algorithms.length} 種）`,sequence:combinedSequence})}
+  if(c.algorithms.length>1){const combinedSequence=c.algorithms.flatMap(algorithm=>algorithm.sequence);definitions.push({name:"已選演算法 Coverage-preserving 合併",sequence:combinedSequence,optimize:true,algorithmCount:c.algorithms.length})}
   const analyzed=[];let elapsed=0;
   for(let index=0;index<definitions.length;index++){
-    const definition=definitions[index];setStatus(`正在進行既有演算法 TAGS 分析 ${index+1}/${definitions.length}：${definition.name}`,"busy");
-    const analysis=await callWorker("analyze",{name:definition.name,sequence:definition.sequence,faults:c.faults});elapsed+=analysis.elapsedSeconds;analyzed.push(analysis.candidate);
+    const definition=definitions[index];setStatus(definition.optimize?`正在移除不提升 coverage 的重複步驟：${FaultEngine.countN(definition.sequence)}N…`:`正在進行既有演算法 TAGS 分析 ${index+1}/${definitions.length}：${definition.name}`,"busy");
+    const analysis=await callWorker(definition.optimize?"optimize":"analyze",{name:definition.name,sequence:definition.sequence,faults:c.faults});elapsed+=analysis.elapsedSeconds;
+    if(definition.optimize)analysis.candidate.name=`優化合併 ${analysis.usedN}N（原 ${analysis.originalN}N，${definition.algorithmCount} 種）`;
+    analyzed.push(analysis.candidate);
   }
   const verified=[];
   for(let index=0;index<analyzed.length;index++){
