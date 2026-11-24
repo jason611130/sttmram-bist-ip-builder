@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.31.0" />
+  <link rel="stylesheet" href="styles.css?v=2.32.0" />
   <link rel="stylesheet" href="help.css?v=2.30.0" />
 </head>
 <body>
@@ -114,7 +114,6 @@
           <fieldset class="coverage-search-controls"><legend>Custom March</legend><div class="coverage-control-grid">
             <label>Maximum N<input id="bistBrowserBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label>
             <label>Pareto resource guard / N<input id="bistBrowserAttempts" type="number" min="10" max="1000" step="10" value="60"><small>Hybrid dominance 後的瀏覽器資源上限</small></label>
-            <label>Coupling relation<select id="bistBrowserRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label>
             <label>Auto instance max / fault<input id="bistBrowserLimit" type="number" value="1" readonly aria-describedby="bistBrowserLimitNote"><small id="bistBrowserLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label>
           </div></fieldset>
           <details class="bist-priority-settings"><summary>Fault priority（可勾選、拖曳排序）</summary><p>第一順位 coverage 最高者優先；相同時才比較下一順位。</p><div id="bistFaultPriorityList" class="priority-list"></div></details>
@@ -131,8 +130,7 @@
           <div class="engine-bar"><div><span id="engineDot" class="engine-dot"></span><strong id="engineStatus">正在連線本機引擎…</strong><small id="engineHint">請以 python local_engine/server.py 啟動</small></div><button id="simulationRunBtn" class="accent" type="button" disabled>開始本機模擬</button></div>
           <div class="fault-sim-formula"><code>FC(model) = detected instances / injected instances × 100%</code><a href="https://doi.org/10.1109/43.992771" target="_blank" rel="noopener">Wu et al., TCAD 2002 ↗</a></div>
           <div class="fault-sim-meta"><span>目前設定</span><strong id="coverageConfigLabel"></strong></div>
-          <div class="simulation-options">
-            <label><span>Coupling relation</span><select id="couplingRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label>
+          <div class="simulation-options single-control">
             <label><span>Instance limit / fault</span><input id="maxInstances" type="number" min="1000" max="2000000" step="1000" value="250000"></label>
           </div>
           <div class="descriptor-section">
@@ -176,7 +174,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="fault-engine.js?v=2.31.0"></script>
-  <script src="app.js?v=2.31.0"></script>
+  <script src="fault-engine.js?v=2.32.0"></script>
+  <script src="app.js?v=2.32.0"></script>
 </body>
 </html>

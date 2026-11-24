@@ -7,7 +7,7 @@ let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = []
 let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
 let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
-const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.31.0");
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.32.0");
 bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
 bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
 function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
@@ -40,13 +40,12 @@ function loadBistBrowserSettings(){
     if(Array.isArray(saved.selected)){bistBrowserSelected=new Set(saved.selected);FaultEngine.descriptors.filter(d=>!previousPriority.includes(d.id)).forEach(d=>bistBrowserSelected.add(d.id))}
     if(saved.budget)$("bistBrowserBudget").value=saved.budget;
     if(saved.attempts)$("bistBrowserAttempts").value=saved.attempts;
-    if(saved.relation)$("bistBrowserRelation").value=saved.relation;
-    Object.assign(saved,{prioritySchema:2,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
+    delete saved.relation;Object.assign(saved,{prioritySchema:2,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
   }catch{}
 }
 function saveBistBrowserSettings(){
   let saved={};try{saved=JSON.parse(localStorage.getItem("sttmram-simulator-settings"))||{}}catch{}
-  Object.assign(saved,{budget:+$("bistBrowserBudget").value,attempts:+$("bistBrowserAttempts").value,relation:$("bistBrowserRelation").value,prioritySchema:2,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});
+  Object.assign(saved,{budget:+$("bistBrowserBudget").value,attempts:+$("bistBrowserAttempts").value,prioritySchema:2,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});delete saved.relation;
   localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
 }
 function bistDescriptorInstances(d,depth,width,relation){
@@ -56,7 +55,7 @@ function bistDescriptorInstances(d,depth,width,relation){
   return maps*(d.variants?.length||1);
 }
 function updateBistBrowserLimit(c=readConfig()){
-  const relation=$("bistBrowserRelation").value,counts=bistBrowserPriority.filter(id=>bistBrowserSelected.has(id)).map(id=>{const d=FaultEngine.descriptors.find(x=>x.id===id);return {id,count:bistDescriptorInstances(d,c.depth,c.dataWidth,relation)}});
+  const relation="same_word_adjacent",counts=bistBrowserPriority.filter(id=>bistBrowserSelected.has(id)).map(id=>{const d=FaultEngine.descriptors.find(x=>x.id===id);return {id,count:bistDescriptorInstances(d,c.depth,c.dataWidth,relation)}});
   const largest=counts.reduce((best,x)=>x.count>best.count?x:best,{id:"—",count:1});
   $("bistBrowserLimit").value=largest.count;
   $("bistBrowserLimitNote").textContent=`${largest.id} 最大需求；依 ${c.depth.toLocaleString()} × ${c.dataWidth.toLocaleString()} 自動計算`;
@@ -510,7 +509,7 @@ async function runLocalSimulation(){
   if(!selectedDescriptorIds.size){$("simulationMessage").textContent="請至少選擇一個 Fault Descriptor。";$("simulationMessage").className="simulation-message error";return}
   const button=$("simulationRunBtn");button.disabled=true;button.textContent="本機計算中…";
   $("simulationMessage").textContent="正在產生 instances 並逐一比較 golden / faulty output…";$("simulationMessage").className="simulation-message running";
-  const payload={memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:a.name,operationComplexity:`${a.count}N`,faults:faultPriority.filter(id=>selectedDescriptorIds.has(id)),couplingRelation:$("couplingRelation").value,maxInstances:Number($("maxInstances").value),sequence:a.elements.map(e=>({direction:e.d?"down":"up",operations:e.o.map(op=>({kind:op[0],pattern:op[1]}))}))};
+  const payload={memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:a.name,operationComplexity:`${a.count}N`,faults:faultPriority.filter(id=>selectedDescriptorIds.has(id)),couplingRelation:"same_word_adjacent",maxInstances:Number($("maxInstances").value),sequence:a.elements.map(e=>({direction:e.d?"down":"up",operations:e.o.map(op=>({kind:op[0],pattern:op[1]}))}))};
   try{
     const response=await fetch("/api/simulate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     const result=await response.json();if(!response.ok)throw new Error(result.error||"Simulation failed");
@@ -580,7 +579,7 @@ async function runBistBrowserSearch(){
     const verified=[];
     for(let index=0;index<bistBrowserSynthesis.candidates.length;index++){
       const candidate=bistBrowserSynthesis.candidates[index];setBistBrowserStatus(`TAGS 已停在 ${bistBrowserSynthesis.stoppedAtN}N；正在用 ${c.depth} × ${c.dataWidth} 驗證候選 ${index+1}/${bistBrowserSynthesis.candidates.length}…`,"busy");
-      const result=await callBistBrowserWorker("simulate",{memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:candidate.name,operationComplexity:`${candidate.usedN}N`,sequence:candidate.elements,faults,couplingRelation:$("bistBrowserRelation").value,maxInstances:updateBistBrowserLimit(c)});verified.push({candidate,result});
+      const result=await callBistBrowserWorker("simulate",{memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:candidate.name,operationComplexity:`${candidate.usedN}N`,sequence:candidate.elements,faults,couplingRelation:"same_word_adjacent",maxInstances:updateBistBrowserLimit(c)});verified.push({candidate,result});
     }
     verified.sort((a,b)=>compareFullGeometry(a,b,faults));const {candidate,result}=verified[0];
     customMarch={...candidate,name:`TAGS March ${candidate.usedN}N（BIST 自動搜尋）`};localStorage.setItem("sttmram-custom-march",JSON.stringify(customMarch));localStorage.setItem("sttmram-custom-march-enabled","true");$("enableCustomMarch").disabled=false;$("enableCustomMarch").checked=true;
@@ -716,12 +715,11 @@ $("coverageCsvBtn").onclick=()=>download("sttmram_fault_coverage.csv",faultCover
 $("simulationRunBtn").onclick=runLocalSimulation;
 $("synthSearchBtn").onclick=runSynthesis;
 $("bistBrowserSearchBtn").onclick=runBistBrowserSearch;
-[$("bistBrowserBudget"),$("bistBrowserAttempts"),$("bistBrowserRelation")].forEach(control=>control.addEventListener("change",()=>{saveBistBrowserSettings();updateBistBrowserLimit();setBistBrowserStatus("設定已更新；請重新搜尋最佳 March") }));
+[$("bistBrowserBudget"),$("bistBrowserAttempts")].forEach(control=>control.addEventListener("change",()=>{saveBistBrowserSettings();updateBistBrowserLimit();setBistBrowserStatus("設定已更新；請重新搜尋最佳 March") }));
 $("synthesisResults").onclick=e=>{const button=e.target.closest("button[data-use-candidate]");if(button)useSynthesisCandidate(Number(button.dataset.useCandidate))};
 function markSimulationStale(){if(!simulationResult)return;$("simulationMessage").textContent="模擬設定已變更；請重新執行本機計算。";$("simulationMessage").className="simulation-message warn"}
 $("descriptorGrid").onchange=e=>{const input=e.target.closest("input[data-descriptor-id]");if(!input)return;input.checked?selectedDescriptorIds.add(input.dataset.descriptorId):selectedDescriptorIds.delete(input.dataset.descriptorId);markSimulationStale();render()};
 $("descriptorGrid").onclick=e=>{const button=e.target.closest("button[data-priority-move]");if(!button)return;const index=faultPriority.indexOf(button.dataset.priorityId),next=button.dataset.priorityMove==="up"?index-1:index+1;if(index<0||next<0||next>=faultPriority.length)return;[faultPriority[index],faultPriority[next]]=[faultPriority[next],faultPriority[index]];renderDescriptorGrid();markSimulationStale();render()};
-$("couplingRelation").onchange=markSimulationStale;
 $("maxInstances").oninput=markSimulationStale;
 $("loadLatestBtn").onclick=async()=>{try{const response=await fetch("/api/results/latest",{cache:"no-store"});const data=await response.json();if(!data.result)throw new Error("沒有保存的結果");data.result._configKey=activeFaultCoverageKey;renderSimulationResult(data.result)}catch(error){$("simulationMessage").textContent=`無法載入：${error.message}`;$("simulationMessage").className="simulation-message error"}};
 const descriptorTemplate={id:"CUSTOM_TF",name:"Custom transition fault",description:"Example descriptor",roles:["VTM"],relation:"single",supported:true,variants:[{id:"CUSTOM_0to1",trigger:{target:"VTM",operation:"write",transition:"0->1"},effect:{target:"VTM",state:"hold"}}]};
