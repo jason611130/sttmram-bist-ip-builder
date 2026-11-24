@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內使用 TAGS 搜尋 March test 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.35.0">
+  <link rel="stylesheet" href="styles.css?v=2.36.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.35</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.36</span></div>
   </header>
 
   <main class="sim-main">
@@ -45,7 +45,7 @@
           <label><input type="radio" name="analysisMode" value="search" checked><span><strong>搜尋新的 Custom March</strong><small>Hybrid TAGS：coverage contribution＋descriptor progress</small></span></label>
           <label><input type="radio" name="analysisMode" value="existing"><span><strong>分析既有演算法</strong><small>對已開發的 March 直接執行 Fault Descriptor／TAGS 分析</small></span></label>
         </div>
-        <fieldset id="searchModePanel" class="coverage-search-controls"><legend>Custom March 搜尋</legend><div class="coverage-control-grid"><label>Maximum N<input id="simBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label><label>Pareto resource guard / N<input id="simAttempts" type="number" min="10" max="1000" step="10" value="60"><small>Hybrid dominance 後每層最多保留數；只限制瀏覽器資源</small></label></div></fieldset>
+        <fieldset id="searchModePanel" class="coverage-search-controls"><legend>Custom March 搜尋</legend><div class="coverage-control-grid"><label>Maximum N<input id="simBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label><label>Pareto resource guard / N<input id="simAttempts" type="number" min="10" max="1000" step="10" value="200"><small>Hybrid dominance 後每層最多保留數；只限制瀏覽器資源</small></label></div></fieldset>
         <fieldset id="existingModePanel" class="coverage-search-controls existing-algorithm-panel" hidden><legend>已開發的演算法（可複選）</legend><div class="existing-algorithm-grid">
           <label><input id="existingWom26" type="checkbox" checked><span><strong>WOM March 26N</strong><small>Yoon et al., EMACS 2016</small></span></label>
           <label><input id="existingDirf14" type="checkbox"><span><strong>dIRF March 14N</strong><small>Nair et al., ITC 2018</small></span></label>
@@ -73,7 +73,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.35.0"></script>
-  <script src="fault-simulator.js?v=2.35.0"></script>
+  <script src="fault-engine.js?v=2.36.0"></script>
+  <script src="fault-simulator.js?v=2.36.0"></script>
 </body>
 </html>

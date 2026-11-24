@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const ids = ["depth","dataWidth","addrWidth","autoAddr","algoWom26","algoDirf14","algoMarchC","algoMarchCM","repeatWom26","repeatDirf14","repeatMarchC","repeatMarchCM","paperLiteral","optimizeSequence","synthBudget","synthAttempts","enableCustomMarch","readLatency","writeLatency","useReady"];
-const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,repeatWom26:1,repeatDirf14:1,repeatMarchC:1,repeatMarchCM:1,paperLiteral:false,optimizeSequence:true,synthBudget:12,synthAttempts:60,enableCustomMarch:false,readLatency:1,writeLatency:1,useReady:false};
+const defaults = {depth:256,dataWidth:32,addrWidth:8,autoAddr:true,algoWom26:true,algoDirf14:false,algoMarchC:false,algoMarchCM:false,repeatWom26:1,repeatDirf14:1,repeatMarchC:1,repeatMarchCM:1,paperLiteral:false,optimizeSequence:true,synthBudget:12,synthAttempts:200,enableCustomMarch:false,readLatency:1,writeLatency:1,useReady:false};
 let files = {}, activeFile = "core", selectedFaultId = null, faultCardHtmlById = {};
 let activeFaultCoverageKey = "", activeFaultCoverageLabel = "";
 let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = [], simulationResult = null, engineOnline = false;
@@ -8,7 +8,7 @@ let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
 let browserDescriptorOverrides={};try{browserDescriptorOverrides=JSON.parse(localStorage.getItem("sttmram-ramses-descriptor-overrides-v1"))||{}}catch{browserDescriptorOverrides={}}
 let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
-const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.35.0");
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.36.0");
 bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
 bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
 function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
@@ -39,18 +39,19 @@ function moveConditionalFaultsLast(ids){const tail=["RTF","TRDF","TWF","SWF"];re
 function loadBistBrowserSettings(){
   try{
     const saved=JSON.parse(localStorage.getItem("sttmram-simulator-settings"));if(!saved)return;
+    const schema=Number(saved.prioritySchema||0);if(schema<4&&(!saved.attempts||Number(saved.attempts)===60))saved.attempts=200;
     const previousPriority=Array.isArray(saved.priority)?saved.priority:[];
     if(previousPriority.length)bistBrowserPriority=[...previousPriority.filter(id=>FaultEngine.descriptors.some(d=>d.id===id)),...FaultEngine.descriptors.map(d=>d.id).filter(id=>!previousPriority.includes(id))];
-    if(Number(saved.prioritySchema||0)<3)bistBrowserPriority=moveConditionalFaultsLast(bistBrowserPriority);
+    if(schema<3)bistBrowserPriority=moveConditionalFaultsLast(bistBrowserPriority);
     if(Array.isArray(saved.selected)){bistBrowserSelected=new Set(saved.selected);FaultEngine.descriptors.filter(d=>!previousPriority.includes(d.id)).forEach(d=>bistBrowserSelected.add(d.id))}
     if(saved.budget)$("bistBrowserBudget").value=saved.budget;
     if(saved.attempts)$("bistBrowserAttempts").value=saved.attempts;
-    delete saved.relation;Object.assign(saved,{prioritySchema:3,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
+    delete saved.relation;Object.assign(saved,{prioritySchema:4,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
   }catch{}
 }
 function saveBistBrowserSettings(){
   let saved={};try{saved=JSON.parse(localStorage.getItem("sttmram-simulator-settings"))||{}}catch{}
-  Object.assign(saved,{budget:+$("bistBrowserBudget").value,attempts:+$("bistBrowserAttempts").value,prioritySchema:3,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});delete saved.relation;
+  Object.assign(saved,{budget:+$("bistBrowserBudget").value,attempts:+$("bistBrowserAttempts").value,prioritySchema:4,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});delete saved.relation;
   localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
 }
 function bistDescriptorInstances(d,depth,width,relation){
