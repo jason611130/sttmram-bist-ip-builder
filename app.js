@@ -8,7 +8,7 @@ let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
 let browserDescriptorOverrides={};try{browserDescriptorOverrides=JSON.parse(localStorage.getItem("sttmram-ramses-descriptor-overrides-v1"))||{}}catch{browserDescriptorOverrides={}}
 let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
-const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.34.0");
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.35.0");
 bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
 bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
 function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
@@ -17,9 +17,13 @@ const faultUniverse = [
   {id:"SAF",name:"Stuck-at fault",type:"Static",description:"Cell 永久固定為 0 或 1，任何 write 都無法改變其狀態。",roles:["VTM"],relation:"single",supported:true},
   {id:"TF",name:"Transition fault",type:"Static",description:"Cell 的 0→1 或 1→0 寫入轉換永久失敗。",roles:["VTM"],relation:"single",supported:true},
   {id:"SWF",name:"Slow write fault",type:"Static · Timed",description:"Cell switching time 超過指定 write pulse；需 at-speed／short-pulse write。",roles:["VTM"],relation:"single",supported:false},
-  {id:"RDF",name:"Read destructive fault",type:"Static",description:"Read 使 cell 翻轉，且本次 read 立即回傳錯誤值。",roles:["VTM"],relation:"single",supported:true},
+  {id:"RDF",name:"Read destructive fault",type:"Static",description:"第一次 read 回傳原值但破壞 cell，下一次 read 才觀察到錯誤。",roles:["VTM"],relation:"single",supported:true},
+  {id:"AF",name:"Address decoder alias fault",type:"Static",description:"Decoder alias 使一個 address 的 write 同時改寫相鄰 address。",roles:["AGR","VTM"],relation:"adjacent_address",supported:true},
   {id:"TRDF",name:"Transient read disturb fault",type:"Static · Stochastic",description:"Read 期間偶發擾動；沒有 occurrence model 時不能宣稱 deterministic coverage。",roles:["VTM"],relation:"single",supported:false},
   {id:"CFwd",name:"Write-disturb coupling fault",type:"Static",description:"AGR 的 write transition 擾動相鄰 VTM，使 victim 狀態翻轉。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true},
+  {id:"CFst",name:"State coupling fault",type:"Static",description:"AGR 的靜態資料狀態使相鄰 VTM 的 write transition 失敗。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true},
+  {id:"CFid",name:"Idempotent coupling fault",type:"Static",description:"AGR 的 write transition 將相鄰 VTM 強迫成固定值。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true},
+  {id:"CFin",name:"Inversion coupling fault",type:"Static",description:"AGR 的 write transition 使相鄰 VTM 狀態反相。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true},
   {id:"WDF",name:"Write destructive fault",type:"Static",description:"對 cell 寫入相同值時，non-transition write 反而破壞並翻轉內容。",roles:["VTM"],relation:"single",supported:true},
   {id:"TWF",name:"Transient write fault",type:"Static · Stochastic",description:"Write 因熱擾動偶發失敗；需 occurrence probability model。",roles:["VTM"],relation:"single",supported:false},
   {id:"IRF",name:"Incorrect read fault",type:"Static",description:"Cell 狀態正確，但 read output 回傳相反資料。",roles:["VTM"],relation:"single",supported:true},
@@ -37,21 +41,21 @@ function loadBistBrowserSettings(){
     const saved=JSON.parse(localStorage.getItem("sttmram-simulator-settings"));if(!saved)return;
     const previousPriority=Array.isArray(saved.priority)?saved.priority:[];
     if(previousPriority.length)bistBrowserPriority=[...previousPriority.filter(id=>FaultEngine.descriptors.some(d=>d.id===id)),...FaultEngine.descriptors.map(d=>d.id).filter(id=>!previousPriority.includes(id))];
-    if(Number(saved.prioritySchema||0)<2)bistBrowserPriority=moveConditionalFaultsLast(bistBrowserPriority);
+    if(Number(saved.prioritySchema||0)<3)bistBrowserPriority=moveConditionalFaultsLast(bistBrowserPriority);
     if(Array.isArray(saved.selected)){bistBrowserSelected=new Set(saved.selected);FaultEngine.descriptors.filter(d=>!previousPriority.includes(d.id)).forEach(d=>bistBrowserSelected.add(d.id))}
     if(saved.budget)$("bistBrowserBudget").value=saved.budget;
     if(saved.attempts)$("bistBrowserAttempts").value=saved.attempts;
-    delete saved.relation;Object.assign(saved,{prioritySchema:2,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
+    delete saved.relation;Object.assign(saved,{prioritySchema:3,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
   }catch{}
 }
 function saveBistBrowserSettings(){
   let saved={};try{saved=JSON.parse(localStorage.getItem("sttmram-simulator-settings"))||{}}catch{}
-  Object.assign(saved,{budget:+$("bistBrowserBudget").value,attempts:+$("bistBrowserAttempts").value,prioritySchema:2,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});delete saved.relation;
+  Object.assign(saved,{budget:+$("bistBrowserBudget").value,attempts:+$("bistBrowserAttempts").value,prioritySchema:3,priority:bistBrowserPriority,selected:[...bistBrowserSelected]});delete saved.relation;
   localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
 }
 function bistDescriptorInstances(d,depth,width,relation){
   if(!d.supported||d.required_operation&&!d.ramsesVariants)return 0;
-  const active=d.ramsesVariants?(d.ramsesVariants.some(variant=>variant.suspect==="*")?relation:"single"):(d.relation!=="single"?relation:"single");
+  const active=d.ramsesVariants?(d.ramsesVariants.some(variant=>variant.suspect==="#")?"adjacent_address":d.ramsesVariants.some(variant=>variant.suspect==="*")?"same_word_adjacent":"single"):d.relation;
   const maps=active==="single"?depth*width:active==="same_word_adjacent"?depth*Math.max(0,width-1)*2:Math.max(0,depth-1)*width*2;
   return maps*(d.ramsesVariants?.length||d.variants?.length||1);
 }
@@ -558,7 +562,7 @@ function useSynthesisCandidate(index){
 
 function setBistBrowserStatus(message,state="ready"){$("bistBrowserStatus").className=`worker-status ${state}`;$("bistBrowserStatus").querySelector("span").textContent=message}
 function renderBistBrowserCoverage(result,candidate){
-  const colors={SAF:"#78a6d0",TF:"#8ab6a2",SWF:"#b7a36c",RDF:"#c99873",TRDF:"#8d98a3",CFwd:"#d29a9a",WDF:"#c47f88",TWF:"#9b8f9d",IRF:"#a996ce",RTF:"#c3ad6e",DRF:"#d7a17d",dIRF:"#7fb7bc",dRDF:"#69a5b5",dTF:"#82a7d1"};
+  const colors={SAF:"#78a6d0",TF:"#8ab6a2",SWF:"#b7a36c",RDF:"#c99873",AF:"#9cb0c4",TRDF:"#8d98a3",CFwd:"#d29a9a",CFst:"#c69db7",CFid:"#b99191",CFin:"#a888ba",WDF:"#c47f88",TWF:"#9b8f9d",IRF:"#a996ce",RTF:"#c3ad6e",DRF:"#d7a17d",dIRF:"#7fb7bc",dRDF:"#69a5b5",dTF:"#82a7d1"};
   $("bistBrowserChart").innerHTML=`<div class="vertical-chart"><div class="vertical-axis"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div class="vertical-plot" style="--fault-count:${result.models.length}">${result.models.map(m=>{const value=m.coverage==null?null:Number(m.coverage),color=colors[m.id]||"#7899b7";return `<div class="vertical-column ${value==null?"na":""}" style="--fault-color:${color}" title="${escapeHtml(m.description)}"><strong>${value==null?"N/A":`${value.toFixed(1)}%`}</strong><div class="vertical-bar"><span style="height:${value==null?100:Math.max(0,Math.min(100,value))}%"></span></div><b>${escapeHtml(m.id)}</b><small>${value==null?"N/A":`${Number(m.detected).toLocaleString()}/${Number(m.injected).toLocaleString()}`}</small></div>`}).join("")}</div></div>`;
   const summary=result.summary;$("bistBrowserOverall").innerHTML=`<strong>${summary.weightedCoverage==null?"—":`${Number(summary.weightedCoverage).toFixed(2)}%`}</strong><small>full-geometry instance coverage</small>`;
   $("bistBrowserSequence").innerHTML=`<div><span>Selected Hybrid TAGS candidate</span><strong>${escapeHtml(candidate.name)}</strong><small>${candidate.usedN}N · canonical score ${Number(candidate.score).toFixed(1)}% · final selection verified on full geometry</small></div><code>${escapeHtml(synthSequenceText(candidate.elements))}</code>`;
@@ -656,9 +660,13 @@ function faultExplanation(f,a){
     TF:{fault:"記憶單元有一個轉換方向失效，例如無法由 0→1 或無法由 1→0。",detect:"強制執行 00→11 與 11→00，再緊接著讀回；未完成轉換的 cell 會被抓到。",refs:transitions.slice(0,5)},
     SWF:{fault:"Slow write fault：cell 的 switching time 超過指定 write pulse，短脈衝寫入無法完成轉換。",detect:"必須加入 at-speed／short-pulse write（ws）再讀回；一般 untimed March write 無法把 SWF 與 TF 分開。",refs:[]},
     RDF:{fault:"Read destructive fault：第一次 read 回傳原值，但讀取動作會翻轉 cell 內容。",detect:"寫入已知背景後連續讀取兩次；第一次 read 激發並破壞內容，下一次 read 才由 comparator 觀察 mismatch。",refs:repeatedTwice},
+    AF:{fault:"Address decoder alias fault：兩個 address 錯誤地指向同一個 word，寫入其中一個會改變另一個。",detect:"對相鄰 address 寫入相反背景，再逐一讀回；正反 address order 都注入並驗證。",refs:transitions.slice(0,5)},
     DRF:{fault:"Deceptive read destructive fault：第一次 read 回傳正確值，但 read 後 cell 已翻轉。",detect:"在同一 March element 內對相同 address 連續讀兩次；第二次 read 才觀察到第一次留下的破壞。",refs:repeatedTwice},
     IRF:{fault:"Cell 內部資料仍然正確，但 sense／read path 回傳錯誤值；讀取不一定會改變儲存狀態。",detect:"每次 read 都和 expected pattern 比較，感測值錯誤時 comparator 立即將 fail 拉高。",refs:allReads.slice(0,6)},
     CFwd:{fault:"Write-disturb coupling fault：寫入 aggressor bit 時產生擾動，造成同一 word 或鄰近的 victim bit 改變。",detect:"使用 01／10 checkerboard 讓 aggressor 與 victim 交替切換，再讀回確認 victim 沒有被寫入動作干擾。",refs:checker},
+    CFst:{fault:"State coupling fault：aggressor 保持特定資料時，使 victim 的 write transition 失敗。",detect:"建立不同 AGR/VTM 背景後切換 victim 並讀回；兩種 aggressor state 與兩種 address order 都要驗證。",refs:checker.length?checker:transitions.slice(0,5)},
+    CFid:{fault:"Idempotent coupling fault：aggressor transition 將 victim 強迫成固定的 0 或 1。",detect:"先讓 victim 保持相反值，再切換 aggressor並讀回 victim；固定化後會產生 mismatch。",refs:checker},
+    CFin:{fault:"Inversion coupling fault：aggressor transition 會使 victim 原有資料反相。",detect:"使用相反資料背景切換 aggressor，隨後讀回 victim；正反 AGR/VTM mapping 都會注入。",refs:checker},
     WDF:{fault:"Write destructive fault：對 cell 寫入目前相同值時，non-transition write 反而翻轉其內容。",detect:"建立 0 或 1 後再寫入相同資料，隨即讀回；若 non-transition write 破壞內容便會 mismatch。",refs:sameWrites},
     dIRF:{fault:"單次 read 可能正常，但連續多次讀取同一位址後才回傳錯誤值，因此稱為 dynamic IRF。",detect:"寫入後對相同 address 連續讀取 4 次，觸發並觀察需要多次 read 才出現的錯誤。",refs:repeated},
     dRDF:{fault:"Dynamic read destructive fault：單次 read 正常，第二次連續 read 才破壞 cell 並回傳錯誤值。",detect:"同一 March element 內對相同 address 至少連續讀兩次；第二次 comparator 觀察 destructive mismatch。",refs:repeatedTwice},

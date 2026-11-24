@@ -4,7 +4,7 @@ const assert=require("node:assert/strict");
 const engine=require("./fault-engine.js");
 
 assert.deepEqual(engine.descriptors.map(descriptor=>descriptor.id),[
-  "SAF","TF","RDF","CFwd","WDF","IRF","DRF","dIRF","dRDF","dTF","RTF","TRDF","TWF","SWF"
+  "SAF","TF","RDF","AF","CFwd","CFst","CFid","CFin","WDF","IRF","DRF","dIRF","dRDF","dTF","RTF","TRDF","TWF","SWF"
 ]);
 
 const grouped=engine.groupMarchElements([
@@ -100,6 +100,23 @@ const builtInRdfOneRead=engine.simulate({
   sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]
 });
 assert.equal(builtInRdfOneRead.models[0].coverage,0,"built-in RDF requires a later observation read");
+
+const couplingSequence=[
+  {direction:"up",operations:[{kind:"w",pattern:"00"}]},
+  {direction:"up",operations:[{kind:"r",pattern:"00"},{kind:"w",pattern:"11"},{kind:"r",pattern:"11"}]},
+  {direction:"down",operations:[{kind:"r",pattern:"11"},{kind:"w",pattern:"00"},{kind:"r",pattern:"00"}]},
+  {direction:"up",operations:[{kind:"w",pattern:"01"},{kind:"r",pattern:"01"},{kind:"w",pattern:"10"},{kind:"r",pattern:"10"}]},
+  {direction:"down",operations:[{kind:"w",pattern:"01"},{kind:"r",pattern:"01"},{kind:"w",pattern:"10"},{kind:"r",pattern:"10"}]}
+];
+const extendedCoupling=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["AF","CFst","CFid","CFin"],maxInstances:10000,sequence:couplingSequence
+});
+assert.equal(extendedCoupling.models.find(model=>model.id==="AF").injected,24,"AF must inject both adjacent-address orders");
+for(const id of ["CFst","CFid","CFin"]){
+  const model=extendedCoupling.models.find(item=>item.id===id);
+  assert.equal(model.injected,32,`${id} must inject both AGR/VTM bit orders`);
+  assert.ok(model.detected>0,`${id} must be executable by digital March operations`);
+}
 
 const wdf=engine.simulate({
   memory:{depth:4,dataWidth:2},faults:["WDF"],maxInstances:1000,

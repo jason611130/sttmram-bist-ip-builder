@@ -17,12 +17,30 @@
     {id:"RDF",name:"Read destructive fault",category:"static",detection_mode:"march",description:"第一次 read 回傳原值但破壞 cell；下一次 read 才觀察到錯誤。",roles:["VTM"],relation:"single",supported:true,variants:[
       {id:"RDF0",trigger:{target:"VTM",operation:"read",state:0},effect:{target:"VTM",state:"flip",timing:"after"}},
       {id:"RDF1",trigger:{target:"VTM",operation:"read",state:1},effect:{target:"VTM",state:"flip",timing:"after"}}]},
+    {id:"AF",name:"Address decoder alias fault",category:"static",detection_mode:"march",description:"Decoder alias 使一個 address 的 write 同時改寫相鄰 address。",roles:["AGR","VTM"],relation:"adjacent_address",supported:true,variants:[
+      {id:"AFwrite0",trigger:{target:"AGR",operation:"write",value:0,requires:{VTM:1}},effect:{target:"VTM",state:"force0"}},
+      {id:"AFwrite1",trigger:{target:"AGR",operation:"write",value:1,requires:{VTM:0}},effect:{target:"VTM",state:"force1"}}]},
     {id:"TRDF",name:"Transient read disturb fault",category:"static",detection_mode:"stochastic",description:"Read 期間以小機率造成 cell 翻轉；需要 occurrence probability／trigger window。",roles:["VTM"],relation:"single",supported:false,unsupported_reason:"尚未定義 deterministic occurrence probability 或 trigger window。"},
     {id:"CFwd",name:"Write-disturb coupling fault",category:"static",detection_mode:"march",description:"Aggressor 的 write transition 翻轉相鄰 victim cell。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true,variants:[
       {id:"CFwd01V0",trigger:{target:"AGR",operation:"write",transition:"0->1",requires:{VTM:0}},effect:{target:"VTM",state:"flip"}},
       {id:"CFwd01V1",trigger:{target:"AGR",operation:"write",transition:"0->1",requires:{VTM:1}},effect:{target:"VTM",state:"flip"}},
       {id:"CFwd10V0",trigger:{target:"AGR",operation:"write",transition:"1->0",requires:{VTM:0}},effect:{target:"VTM",state:"flip"}},
       {id:"CFwd10V1",trigger:{target:"AGR",operation:"write",transition:"1->0",requires:{VTM:1}},effect:{target:"VTM",state:"flip"}}]},
+    {id:"CFst",name:"State coupling fault",category:"static",detection_mode:"march",description:"Aggressor 的靜態資料狀態使相鄰 victim 的 write transition 失敗。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true,variants:[
+      {id:"CFstA0V01",trigger:{target:"VTM",operation:"write",transition:"0->1",requires:{AGR:0}},effect:{target:"VTM",state:"hold"}},
+      {id:"CFstA0V10",trigger:{target:"VTM",operation:"write",transition:"1->0",requires:{AGR:0}},effect:{target:"VTM",state:"hold"}},
+      {id:"CFstA1V01",trigger:{target:"VTM",operation:"write",transition:"0->1",requires:{AGR:1}},effect:{target:"VTM",state:"hold"}},
+      {id:"CFstA1V10",trigger:{target:"VTM",operation:"write",transition:"1->0",requires:{AGR:1}},effect:{target:"VTM",state:"hold"}}]},
+    {id:"CFid",name:"Idempotent coupling fault",category:"static",detection_mode:"march",description:"Aggressor 的 write transition 將相鄰 victim 強迫成固定的 0 或 1。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true,variants:[
+      {id:"CFid01F0",trigger:{target:"AGR",operation:"write",transition:"0->1",requires:{VTM:1}},effect:{target:"VTM",state:"force0"}},
+      {id:"CFid01F1",trigger:{target:"AGR",operation:"write",transition:"0->1",requires:{VTM:0}},effect:{target:"VTM",state:"force1"}},
+      {id:"CFid10F0",trigger:{target:"AGR",operation:"write",transition:"1->0",requires:{VTM:1}},effect:{target:"VTM",state:"force0"}},
+      {id:"CFid10F1",trigger:{target:"AGR",operation:"write",transition:"1->0",requires:{VTM:0}},effect:{target:"VTM",state:"force1"}}]},
+    {id:"CFin",name:"Inversion coupling fault",category:"static",detection_mode:"march",description:"Aggressor 的 write transition 使相鄰 victim 狀態反相。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true,variants:[
+      {id:"CFin01V0",trigger:{target:"AGR",operation:"write",transition:"0->1",requires:{VTM:0}},effect:{target:"VTM",state:"flip"}},
+      {id:"CFin01V1",trigger:{target:"AGR",operation:"write",transition:"0->1",requires:{VTM:1}},effect:{target:"VTM",state:"flip"}},
+      {id:"CFin10V0",trigger:{target:"AGR",operation:"write",transition:"1->0",requires:{VTM:0}},effect:{target:"VTM",state:"flip"}},
+      {id:"CFin10V1",trigger:{target:"AGR",operation:"write",transition:"1->0",requires:{VTM:1}},effect:{target:"VTM",state:"flip"}}]},
     {id:"WDF",name:"Write destructive fault",category:"static",detection_mode:"march",description:"對 cell 執行 non-transition write（w0/0 或 w1/1）時，反而破壞並翻轉其內容。",roles:["VTM"],relation:"single",supported:true,variants:[
       {id:"WDF0",trigger:{target:"VTM",operation:"write",transition:"0->0"},effect:{target:"VTM",state:"flip"}},
       {id:"WDF1",trigger:{target:"VTM",operation:"write",transition:"1->1"},effect:{target:"VTM",state:"flip"}}]},
@@ -46,7 +64,7 @@
       {id:"dTF0to1",trigger:{target:"VTM",operation:"write",transition:"0->1",requires_predecessor:true},effect:{target:"VTM",state:"hold"}},
       {id:"dTF1to0",trigger:{target:"VTM",operation:"write",transition:"1->0",requires_predecessor:true},effect:{target:"VTM",state:"hold"}}]}
   ];
-  const descriptorOrder=["SAF","TF","RDF","CFwd","WDF","IRF","DRF","dIRF","dRDF","dTF","RTF","TRDF","TWF","SWF"];
+  const descriptorOrder=["SAF","TF","RDF","AF","CFwd","CFst","CFid","CFin","WDF","IRF","DRF","dIRF","dRDF","dTF","RTF","TRDF","TWF","SWF"];
   const descriptors=descriptorOrder.map(id=>descriptorDefinitions.find(descriptor=>descriptor.id===id));
   const byId=Object.fromEntries(descriptors.map(x=>[x.id,x]));
   const clone=x=>JSON.parse(JSON.stringify(x));
@@ -60,6 +78,7 @@
   function matches(t,op,target,before,writes,hasPredecessor=false){
     if(t.operation!==op||(t.target||"VTM")!==target)return false;
     if(t.requires_predecessor&&!hasPredecessor)return false;
+    if(t.value!==undefined&&writes[target]!==Number(t.value))return false;
     if(t.state!==undefined&&t.state!=="*"&&before[target]!==Number(t.state))return false;
     if(t.transition&&t.transition!=="*"){
       if((op!=="write"&&op!=="write_short")||t.transition!==`${before[target]}->${writes[target]}`)return false;
@@ -156,7 +175,7 @@
   }
   function simulateRamsesInstance(variant,roles,elements){
     const states={};Object.keys(roles).forEach(role=>states[role]=0);
-    const agrRole=variant.suspect==="*"?"AGR":"VTM",vtmRole="VTM",addresses=[...new Set(Object.values(roles).map(location=>location[0]))].sort((a,b)=>a-b),at={};
+    const agrRole=variant.suspect==="@"?"VTM":"AGR",vtmRole="VTM",addresses=[...new Set(Object.values(roles).map(location=>location[0]))].sort((a,b)=>a-b),at={};
     Object.entries(roles).forEach(([role,location])=>(at[location[0]]||(at[location[0]]=[])).push(role));
     let pending=false,activated=false,recovered=false,maxProgress=0,agrRuns=new Map(),globalStep=0,vtmAccessStep=0,activatedAtVtmStep=-1;
     for(let ei=0;ei<elements.length;ei++){
@@ -181,7 +200,7 @@
     return {detected:false,activated,witness:null,descriptorState};
   }
   function simulateRamsesDescriptor(d,depth,width,elements,maxInstances,includeDescriptorStates=false){
-    const variants=d.ramsesVariants||[],relation=variants.some(variant=>variant.suspect==="*")?"same_word_adjacent":"single",maps=[...roleMaps(depth,width,relation)],total=maps.length*variants.length;
+    const variants=d.ramsesVariants||[],relation=variants.some(variant=>variant.suspect==="#")?"adjacent_address":variants.some(variant=>variant.suspect==="*")?"same_word_adjacent":"single",maps=[...roleMaps(depth,width,relation)],total=maps.length*variants.length;
     if(!variants.length)return {id:d.id,name:d.name,description:d.description,status:"unsupported",reason:"Editable descriptor 沒有可執行 variant。",injected:0,detected:0,undetected:0,coverage:null};
     if(total>maxInstances)return {id:d.id,name:d.name,description:d.description,status:"limit",reason:`${total.toLocaleString()} instances 超過 ${maxInstances.toLocaleString()} 上限。`,injected:total,activated:0,detected:0,undetected:total,coverage:null};
     let detected=0,activated=0,first=null;const instanceStates=[];
@@ -194,7 +213,7 @@
     if(d.ramsesVariants)return simulateRamsesDescriptor(d,depth,width,elements,maxInstances,includeDescriptorStates);
     if(!d.supported)return {id:d.id,name:d.name,description:d.description,status:"unsupported",reason:d.unsupported_reason,injected:0,detected:0,undetected:0,coverage:null};
     if(d.required_operation&&!elements.some(element=>(element.operations||[]).some(operation=>operation.kind===d.required_operation)))return {id:d.id,name:d.name,description:d.description,status:"not-applicable",reason:d.not_applicable_reason||`需要 ${d.required_operation} operation。`,injected:0,activated:0,detected:0,undetected:0,coverage:null};
-    const relation=d.relation!=="single"&&override?override:d.relation;
+    const relation=d.relation;
     const maps=[...roleMaps(depth,width,relation)],total=maps.length*d.variants.length;
     if(total>maxInstances)return {id:d.id,name:d.name,description:d.description,status:"limit",reason:`${total.toLocaleString()} instances 超過 ${maxInstances.toLocaleString()} 上限。`,injected:total,activated:0,detected:0,undetected:total,coverage:null};
     let detected=0,activated=0,first=null;const instanceStates=[];
