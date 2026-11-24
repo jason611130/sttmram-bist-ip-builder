@@ -18,8 +18,8 @@ assert.deepEqual(grouped[1],{direction:"up",operations:[{kind:"r",pattern:"0"},{
 assert.equal(grouped[2].direction,"down");
 
 const d1=engine.synthesize({maxN:1,frontierLimit:20,faults:["dIRF"]});
-assert.equal(d1.schema,"sttmram-tags-synthesis/v4");
-assert.equal(d1.method,"Strict-Priority Fault-Descriptor TAGS");
+assert.equal(d1.schema,"sttmram-tags-synthesis/v5");
+assert.equal(d1.method,"Hybrid Coverage-Descriptor TAGS");
 assert.equal(d1.candidates[0].coverages.dIRF,0);
 assert.ok((d1.candidates[0].stateCounts.dIRF.SETUP||0)>0,"1N write must be retained as dIRF setup");
 
@@ -27,6 +27,7 @@ const d4=engine.synthesize({maxN:4,frontierLimit:30,faults:["dIRF"]});
 assert.equal(d4.candidates[0].coverages.dIRF,0);
 assert.ok((d4.candidates[0].stateCounts.dIRF.PROGRESS||0)>0,"partial repeated reads must survive pruning");
 assert.ok(d4.candidates[0].descriptorProgress.dIRF>d1.candidates[0].descriptorProgress.dIRF);
+assert.ok(d4.history.some(level=>Number(level.descriptorContributed)>0),"descriptor contribution must preserve zero-coverage dynamic-fault paths");
 
 const d5Priority=engine.synthesize({maxN:5,frontierLimit:60,faults:["dIRF","SAF","TF"]});
 assert.equal(d5Priority.candidates[0].coverages.dIRF,50,"top-priority dIRF must be detected before lower-priority faults drive the search");

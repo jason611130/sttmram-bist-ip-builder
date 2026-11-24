@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="設定 STT-MRAM 介面與 March 演算法，產生獨立的 Verilog-2001 BIST IP。" />
   <title>STT-MRAM BIST IP Builder</title>
-  <link rel="stylesheet" href="styles.css?v=2.30.0" />
+  <link rel="stylesheet" href="styles.css?v=2.31.0" />
   <link rel="stylesheet" href="help.css?v=2.30.0" />
 </head>
 <body>
@@ -46,10 +46,10 @@
         </div>
         <div id="algoNote" class="note"></div>
         <section class="custom-march-builder" aria-labelledby="customMarchTitle" hidden>
-          <div class="custom-march-head"><div><p class="step">STRICT-PRIORITY TAGS SEARCH</p><h3 id="customMarchTitle">Fault-Descriptor Progress TAGS</h3><p>依 fault 排序逐一搜尋；目前目標的 DETECTED、ACTIVATED、PROGRESS、SETUP 都優先於下一個 fault。</p></div><span>LOCAL ENGINE</span></div>
+          <div class="custom-march-head"><div><p class="step">HYBRID TAGS SEARCH</p><h3 id="customMarchTitle">Coverage＋Descriptor Progress TAGS</h3><p>以 coverage contribution／dominance 為主，同時保留 dynamic fault 的 SETUP、PROGRESS 與 ACTIVATED 路徑。</p></div><span>LOCAL ENGINE</span></div>
           <div class="custom-march-controls">
             <label><span>Maximum N</span><input id="synthBudget" type="number" min="1" max="100" value="12"><small>達 100% coverage 或此上限時停止</small></label>
-            <label><span>Frontier limit / N</span><input id="synthAttempts" type="number" min="10" max="1000" step="10" value="60"><small>每一層最多保留的 template 數</small></label>
+            <label><span>Pareto resource guard / N</span><input id="synthAttempts" type="number" min="10" max="1000" step="10" value="60"><small>Hybrid dominance 後的瀏覽器資源上限</small></label>
             <button id="synthSearchBtn" type="button" disabled>搜尋最佳 March</button>
           </div>
           <div id="synthesisResults" class="synthesis-results"></div>
@@ -110,10 +110,10 @@
           <p class="coverage-note">此處計算的是 survey 故障模型「種類聯集」，不是 fault-injection instance coverage。相同 fault 被多個演算法涵蓋時只計一次。</p>
         </section>
         <section class="bist-browser-coverage coverage-results" aria-labelledby="bistBrowserCoverageTitle">
-          <div class="coverage-result-head"><div><p class="step">03 / STRICT-PRIORITY TAGS SEARCH</p><h2 id="bistBrowserCoverageTitle">Descriptor TAGS March 與 Fault Coverage</h2><p>最上方 fault 會先完成 detection 與 trigger progress；canonical 前五名再以 BIST Memory geometry 的 detected coverage 選出最佳結果。</p></div><div id="bistBrowserOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
+          <div class="coverage-result-head"><div><p class="step">03 / HYBRID TAGS SEARCH</p><h2 id="bistBrowserCoverageTitle">Hybrid TAGS March 與 Fault Coverage</h2><p>Coverage 與 descriptor progress 共同形成 Pareto 候選；canonical 前五名再以 BIST Memory geometry 的 detected coverage 選出最佳結果。</p></div><div id="bistBrowserOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
           <fieldset class="coverage-search-controls"><legend>Custom March</legend><div class="coverage-control-grid">
             <label>Maximum N<input id="bistBrowserBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label>
-            <label>Frontier limit / N<input id="bistBrowserAttempts" type="number" min="10" max="1000" step="10" value="60"><small>每一層最多保留的 template 數</small></label>
+            <label>Pareto resource guard / N<input id="bistBrowserAttempts" type="number" min="10" max="1000" step="10" value="60"><small>Hybrid dominance 後的瀏覽器資源上限</small></label>
             <label>Coupling relation<select id="bistBrowserRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label>
             <label>Auto instance max / fault<input id="bistBrowserLimit" type="number" value="1" readonly aria-describedby="bistBrowserLimitNote"><small id="bistBrowserLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label>
           </div></fieldset>
@@ -176,7 +176,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM BIST IP Builder</span><span>Digital March algorithms · fault-union coverage · RTL export</span></footer>
-  <script src="fault-engine.js?v=2.30.0"></script>
-  <script src="app.js?v=2.30.0"></script>
+  <script src="fault-engine.js?v=2.31.0"></script>
+  <script src="app.js?v=2.31.0"></script>
 </body>
 </html>

@@ -236,9 +236,16 @@
     const readScore=Object.entries(readProgress).reduce((sum,[pattern,count])=>sum+Math.min(4,count)*(pattern==="01"||pattern==="10"?2:1),0);
     return readScore*20+transitions*8+directionChanges*2;
   }
-  function dominates(a,b){
-    if(a.usedN>b.usedN||a.stateVector.length!==b.stateVector.length)return false;
+  function hybridDominates(a,b){
+    // Paper TAGS coverage dominance is the first dimension. Descriptor state is
+    // the second dimension, so a path that is preparing/activating a dynamic
+    // fault cannot be removed only because its current detected coverage is low.
+    if(a.usedN>b.usedN||a.priorityVector.length!==b.priorityVector.length||a.stateVector.length!==b.stateVector.length)return false;
     let better=a.usedN<b.usedN;
+    for(let i=0;i<a.priorityVector.length;i++){
+      if(a.priorityVector[i]<b.priorityVector[i])return false;
+      if(a.priorityVector[i]>b.priorityVector[i])better=true;
+    }
     for(let i=0;i<a.stateVector.length;i++){
       if(a.stateVector[i]<b.stateVector[i])return false;
       if(a.stateVector[i]>b.stateVector[i])better=true;
@@ -253,18 +260,23 @@
     const ordered=[...candidates].sort((a,b)=>compareCandidates(a,b,faults)),kept=[],signatures=new Set();
     for(const candidate of ordered){
       const signature=structuralSignature(candidate);if(signatures.has(signature))continue;
-      if(kept.some(other=>dominates(other,candidate))&&kept.length>=Math.ceil(limit/2))continue;
-      signatures.add(signature);kept.push(candidate);if(kept.length>=limit)break;
+      if(kept.some(other=>hybridDominates(other,candidate)))continue;
+      for(let i=kept.length-1;i>=0;i--)if(hybridDominates(candidate,kept[i]))kept.splice(i,1);
+      signatures.add(signature);kept.push(candidate);
     }
-    return kept;
+    return kept.sort((a,b)=>compareCandidates(a,b,faults)).slice(0,limit);
   }
   function fullCoverage(candidate){
     const values=candidate.priorityVector.filter(value=>value>=0);
     return values.length>0&&values.every(value=>value>=100);
   }
-  function descriptorContribution(candidate,parent){
-    if(!parent||candidate.stateVector.length!==parent.stateVector.length)return true;
-    return candidate.stateVector.some((value,index)=>value>parent.stateVector[index]);
+  function coverageContribution(candidate,parentVector){
+    if(!parentVector||candidate.priorityVector.length!==parentVector.length)return true;
+    return candidate.priorityVector.some((value,index)=>value>parentVector[index]);
+  }
+  function descriptorContribution(candidate,parentStateVector){
+    if(!parentStateVector||candidate.stateVector.length!==parentStateVector.length)return true;
+    return candidate.stateVector.some((value,index)=>value>parentStateVector[index]);
   }
   function descriptorContributionForFault(candidate,parentStates,faultId){
     const current=candidate.descriptorStates[faultId]||[],previous=parentStates?.[faultId]||[];
@@ -317,19 +329,20 @@
         if(!added)break;
       }
       const assessed=generated.map(({elements,parent})=>({usedN:n,elements,parentVector:parent.priorityVector,parentStateVector:parent.stateVector,parentDescriptorStates:parent.descriptorStates,...evaluate(elements,faults)}));evaluatedCandidates+=assessed.length;
-      const contributed=assessed.filter(candidate=>descriptorContribution(candidate,{stateVector:candidate.parentStateVector}));
+      const coverageContributed=assessed.filter(candidate=>coverageContribution(candidate,candidate.parentVector));
+      const descriptorContributed=assessed.filter(candidate=>descriptorContribution(candidate,candidate.parentStateVector));
+      const contributed=assessed.filter(candidate=>coverageContribution(candidate,candidate.parentVector)||descriptorContribution(candidate,candidate.parentStateVector));
       const targetContributed=targetFault?assessed.filter(candidate=>descriptorContributionForFault(candidate,candidate.parentDescriptorStates,targetFault)):[];
-      const exploration=contributed.filter(candidate=>!targetContributed.includes(candidate)).sort((a,b)=>compareCandidates(a,b,faults)).slice(0,Math.ceil(frontierLimit*.25));
-      const pool=targetContributed.length?[...targetContributed,...exploration]:contributed.length?contributed:assessed;
+      const pool=contributed.length?contributed:assessed;
       frontier=pruneLevel(pool,frontierLimit,faults);stoppedAtN=n;
-      const complete=frontier.some(fullCoverage);history.push({n,generated:generated.length,evaluated:assessed.length,contributed:contributed.length,targetContributed:targetContributed.length,improved:contributed.length,kept:frontier.length,activeFault:activeTargetFault(frontier[0],faults),bestScore:frontier[0]?.score??0,bestDescriptorProgress:frontier[0]?.descriptorVector??[],fullCoverage:complete});
+      const complete=frontier.some(fullCoverage);history.push({n,generated:generated.length,evaluated:assessed.length,coverageContributed:coverageContributed.length,descriptorContributed:descriptorContributed.length,contributed:contributed.length,targetContributed:targetContributed.length,improved:contributed.length,kept:frontier.length,activeFault:activeTargetFault(frontier[0],faults),bestScore:frontier[0]?.score??0,bestDescriptorProgress:frontier[0]?.descriptorVector??[],fullCoverage:complete});
       if(complete)stopReason="full-coverage";
       if(!frontier.length){stopReason="frontier-empty";break}
     }
     let ranked=[...frontier].sort((a,b)=>compareCandidates(a,b,faults)).slice(0,5);
     ranked=ranked.map(candidate=>minimizeCandidate(candidate,faults)).sort((a,b)=>compareCandidates(a,b,faults));
-    const top=ranked.map((x,i)=>({...x,rank:i+1,name:`Descriptor TAGS March ${x.usedN}N · Candidate ${i+1}`}));
-    return {schema:"sttmram-tags-synthesis/v4",method:"Strict-Priority Fault-Descriptor TAGS",maxN,frontierLimit,stoppedAtN,stopReason,history,canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,rankingMode:"strict-staged-detected-then-progress",activeTargetFault:activeTargetFault(top[0],faults),candidates:top,evaluatedCandidates,elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6,note:"依 fault priority 逐一完成 DETECTED、ACTIVATED、PROGRESS、SETUP 目標；dynamic repeated access 只有在同一 March element 內才連續計數，最後再做 full-geometry detected coverage 驗證。"};
+    const top=ranked.map((x,i)=>({...x,rank:i+1,name:`Hybrid TAGS March ${x.usedN}N · Candidate ${i+1}`}));
+    return {schema:"sttmram-tags-synthesis/v5",method:"Hybrid Coverage-Descriptor TAGS",maxN,frontierLimit,stoppedAtN,stopReason,history,canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,rankingMode:"coverage-contribution-plus-descriptor-pareto-with-strict-priority",activeTargetFault:activeTargetFault(top[0],faults),candidates:top,evaluatedCandidates,elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6,note:"先依論文 TAGS 保留 coverage contribution，再保留 SETUP、PROGRESS、ACTIVATED、DETECTED descriptor contribution；coverage 與 descriptor state 共同做 Pareto dominance，fault priority 只用於超額候選排序。"};
   }
   function analyze(request){
     const started=performance.now(),faults=request.faults||descriptors.map(x=>x.id),elements=groupMarchElements(request.sequence||request.elements||[]);

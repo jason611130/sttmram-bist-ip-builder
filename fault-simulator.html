@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內使用 TAGS 搜尋 March test 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.30.0">
+  <link rel="stylesheet" href="styles.css?v=2.31.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.30</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.31</span></div>
   </header>
 
   <main class="sim-main">
     <section class="sim-hero">
-      <div><p class="eyebrow">STRICT-PRIORITY DESCRIPTOR TAGS</p><h1>Descriptor TAGS March 搜尋與 Fault Coverage</h1><p>依拖曳順序逐一完成 fault；目前目標的 DETECTED、ACTIVATED、PROGRESS、SETUP 都會先於下一個 fault 比較，再用 datasheet geometry 驗證 detected coverage。</p></div>
+      <div><p class="eyebrow">HYBRID COVERAGE-DESCRIPTOR TAGS</p><h1>Hybrid TAGS March 搜尋與 Fault Coverage</h1><p>以論文的 coverage contribution／dominance 為主，再保留 SETUP、PROGRESS、ACTIVATED 路徑，使 dIRF 等多步驟 dynamic fault 能收斂。</p></div>
       <div class="worker-badge"><span></span><strong>Web Worker</strong><small>計算時 UI 仍可操作</small></div>
     </section>
 
@@ -27,7 +27,7 @@
       </aside>
 
       <section class="priority-panel">
-        <div class="panel-heading"><div><p class="step">02 / STRICT PRIORITY</p><h2>Fault Descriptors</h2></div><small>14 種 Static／Dynamic fault；拖曳 ⠿ 排序，越上方越先完成 detection 與 descriptor progress。</small></div>
+        <div class="panel-heading"><div><p class="step">02 / HYBRID PRIORITY</p><h2>Fault Descriptors</h2></div><small>14 種 Static／Dynamic fault；排序用於 Pareto 候選超額時的保留次序，越上方優先。</small></div>
         <div id="faultPriorityList" class="priority-list"></div>
       </section>
 
@@ -35,10 +35,10 @@
       <section class="coverage-results">
         <div class="coverage-result-head"><div><p class="step">03 / FULL GEOMETRY RESULT</p><h2>Fault Coverage 總覽</h2><p>可搜尋新的 Custom March，或分析既有演算法；最後都用 datasheet geometry 驗證，N/A 不混入 coverage 分母。</p></div><div id="coverageOverall" class="overall-score"><strong>—</strong><small>full-geometry instance coverage</small></div></div>
         <div class="analysis-mode-switch" role="radiogroup" aria-label="TAGS 分析方案">
-          <label><input type="radio" name="analysisMode" value="search" checked><span><strong>搜尋新的 Custom March</strong><small>目前方式：逐 N 產生並篩選新的候選序列</small></span></label>
+          <label><input type="radio" name="analysisMode" value="search" checked><span><strong>搜尋新的 Custom March</strong><small>Hybrid TAGS：coverage contribution＋descriptor progress</small></span></label>
           <label><input type="radio" name="analysisMode" value="existing"><span><strong>分析既有演算法</strong><small>對已開發的 March 直接執行 Fault Descriptor／TAGS 分析</small></span></label>
         </div>
-        <fieldset id="searchModePanel" class="coverage-search-controls"><legend>Custom March 搜尋</legend><div class="coverage-control-grid"><label>Maximum N<input id="simBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label><label>Frontier limit / N<input id="simAttempts" type="number" min="10" max="1000" step="10" value="60"><small>每層最多保留的 template 數</small></label></div></fieldset>
+        <fieldset id="searchModePanel" class="coverage-search-controls"><legend>Custom March 搜尋</legend><div class="coverage-control-grid"><label>Maximum N<input id="simBudget" type="number" min="1" max="100" value="12"><small>100% coverage 或上限時停止</small></label><label>Pareto resource guard / N<input id="simAttempts" type="number" min="10" max="1000" step="10" value="60"><small>Hybrid dominance 後每層最多保留數；只限制瀏覽器資源</small></label></div></fieldset>
         <fieldset id="existingModePanel" class="coverage-search-controls existing-algorithm-panel" hidden><legend>已開發的演算法（可複選）</legend><div class="existing-algorithm-grid">
           <label><input id="existingWom26" type="checkbox" checked><span><strong>WOM March 26N</strong><small>Yoon et al., EMACS 2016</small></span></label>
           <label><input id="existingDirf14" type="checkbox"><span><strong>dIRF March 14N</strong><small>Nair et al., ITC 2018</small></span></label>
@@ -46,7 +46,7 @@
           <label><input id="existingMarchCM" type="checkbox"><span><strong>March CM 7N</strong><small>Yang et al., 2023</small></span></label>
         </div><small class="existing-mode-note">每個演算法會個別分析；複選時另產生 coverage-preserving 優化合併，移除不提升 fault coverage 的 operation。</small></fieldset>
         <fieldset class="coverage-search-controls"><legend>Full geometry 驗證</legend><div class="coverage-control-grid"><label>Coupling relation<select id="simRelation"><option value="same_word_adjacent">同一 word 相鄰 bit</option><option value="adjacent_address">相鄰 address、同 bit</option></select></label><label>Auto instance max / fault<input id="simLimit" type="number" value="1" readonly aria-describedby="simLimitNote"><small id="simLimitNote">依 Memory geometry 與已選 fault 自動計算</small></label></div></fieldset>
-        <button id="searchBtn" class="primary coverage-search-button" type="button">執行 Descriptor TAGS 搜尋</button>
+        <button id="searchBtn" class="primary coverage-search-button" type="button">執行 Hybrid TAGS 搜尋</button>
         <div id="workerStatus" class="worker-status"><i></i><span>瀏覽器計算核心已就緒</span></div>
         <div id="faultChartGrid" class="fault-chart-grid"><p class="empty-state">執行所選 TAGS 方案後，coverage 會自動顯示在這裡。</p></div>
         <div id="coverageFoot" class="coverage-foot"></div>
@@ -66,7 +66,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.30.0"></script>
-  <script src="fault-simulator.js?v=2.30.0"></script>
+  <script src="fault-engine.js?v=2.31.0"></script>
+  <script src="fault-simulator.js?v=2.31.0"></script>
 </body>
 </html>
