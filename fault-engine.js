@@ -14,9 +14,9 @@
     {id:"SWF",name:"Slow write fault",category:"static",detection_mode:"timed",description:"Cell 的 switching time 超過指定 write pulse；需要 at-speed／short-pulse write 才能與一般 TF 區分。",roles:["VTM"],relation:"single",supported:true,required_operation:"ws",not_applicable_reason:"一般功能 March 只有 untimed write；SWF 需要 at-speed／short-pulse write（ws）才能量測。",variants:[
       {id:"SWF0to1",trigger:{target:"VTM",operation:"write_short",transition:"0->1"},effect:{target:"VTM",state:"hold"}},
       {id:"SWF1to0",trigger:{target:"VTM",operation:"write_short",transition:"1->0"},effect:{target:"VTM",state:"hold"}}]},
-    {id:"RDF",name:"Read destructive fault",category:"static",detection_mode:"march",description:"Read 使 cell 翻轉，且本次 read 立即回傳錯誤值。",roles:["VTM"],relation:"single",supported:true,variants:[
-      {id:"RDF0",trigger:{target:"VTM",operation:"read",state:0},effect:{target:"VTM",state:"flip",timing:"before"}},
-      {id:"RDF1",trigger:{target:"VTM",operation:"read",state:1},effect:{target:"VTM",state:"flip",timing:"before"}}]},
+    {id:"RDF",name:"Read destructive fault",category:"static",detection_mode:"march",description:"第一次 read 回傳原值但破壞 cell；下一次 read 才觀察到錯誤。",roles:["VTM"],relation:"single",supported:true,variants:[
+      {id:"RDF0",trigger:{target:"VTM",operation:"read",state:0},effect:{target:"VTM",state:"flip",timing:"after"}},
+      {id:"RDF1",trigger:{target:"VTM",operation:"read",state:1},effect:{target:"VTM",state:"flip",timing:"after"}}]},
     {id:"TRDF",name:"Transient read disturb fault",category:"static",detection_mode:"stochastic",description:"Read 期間以小機率造成 cell 翻轉；需要 occurrence probability／trigger window。",roles:["VTM"],relation:"single",supported:false,unsupported_reason:"尚未定義 deterministic occurrence probability 或 trigger window。"},
     {id:"CFwd",name:"Write-disturb coupling fault",category:"static",detection_mode:"march",description:"Aggressor 的 write transition 翻轉相鄰 victim cell。",roles:["AGR","VTM"],relation:"same_word_adjacent",supported:true,variants:[
       {id:"CFwd01V0",trigger:{target:"AGR",operation:"write",transition:"0->1",requires:{VTM:0}},effect:{target:"VTM",state:"flip"}},
@@ -158,18 +158,18 @@
     const states={};Object.keys(roles).forEach(role=>states[role]=0);
     const agrRole=variant.suspect==="*"?"AGR":"VTM",vtmRole="VTM",addresses=[...new Set(Object.values(roles).map(location=>location[0]))].sort((a,b)=>a-b),at={};
     Object.entries(roles).forEach(([role,location])=>(at[location[0]]||(at[location[0]]=[])).push(role));
-    let pending=false,activated=false,recovered=false,maxProgress=0,agrRuns=new Map(),globalStep=0;
+    let pending=false,activated=false,recovered=false,maxProgress=0,agrRuns=new Map(),globalStep=0,vtmAccessStep=0,activatedAtVtmStep=-1;
     for(let ei=0;ei<elements.length;ei++){
       agrRuns=new Map();const element=elements[ei],ordered=element.direction==="down"?[...addresses].reverse():addresses;
       for(const address of ordered)for(let oi=0;oi<(element.operations||[]).length;oi++){
-        globalStep++;const operation=element.operations[oi],kind=operation.kind,pattern=String(operation.pattern||"0"),local=at[address],ctx={};
+        globalStep++;const operation=element.operations[oi],kind=operation.kind,pattern=String(operation.pattern||"0"),local=at[address],ctx={};if(local.includes(vtmRole))vtmAccessStep++;
         for(const role of local){const before=states[role],value=bit(pattern,roles[role][1]),after=(kind==="w"||kind==="ws")?value:before;ctx[role]={before,value,after}}
-        if(local.includes(agrRole))for(let ci=0;ci<(variant.agr||[]).length;ci++){
+        if(!pending&&local.includes(agrRole))for(let ci=0;ci<(variant.agr||[]).length;ci++){
           const condition=variant.agr[ci],c=ctx[agrRole],matched=ramsesConditionMatches(condition,kind,c.value,c.before,c.after,oi>0),run=matched?(agrRuns.get(ci)||0)+1:0,need=Math.max(1,Number(condition.repeat||1));
-          agrRuns.set(ci,run);maxProgress=Math.max(maxProgress,Math.min(run,need));if(matched&&run>=need){pending=true;activated=true}
+          agrRuns.set(ci,run);maxProgress=Math.max(maxProgress,Math.min(run,need));if(matched&&run>=need){pending=true;activated=true;activatedAtVtmStep=vtmAccessStep}
         }
         if(pending&&local.includes(vtmRole)){
-          const c=ctx[vtmRole],matches=conditions=>(conditions||[]).some(condition=>ramsesConditionMatches(condition,kind,c.value,c.before,c.after,oi>0));
+          const c=ctx[vtmRole],matches=conditions=>(conditions||[]).some(condition=>{const timing=condition.timing||"any",timingMatches=timing==="next"?vtmAccessStep>activatedAtVtmStep:timing==="same"?vtmAccessStep===activatedAtVtmStep:true;return timingMatches&&ramsesConditionMatches(condition,kind,c.value,c.before,c.after,oi>0)});
           if(matches(variant.rcv)){pending=false;recovered=true}
           else if(matches(variant.vtm))return {detected:true,activated:true,witness:{instance:`${variant.id} · ${Object.entries(roles).map(([role,location])=>`${role}=A${location[0]}/B${location[1]}`).join(", ")}`,element:`M${ei}`,operation_index:oi,global_projected_step:globalStep,address,bit:roles[vtmRole][1],role:vtmRole,operation:`${kind}${pattern}`,golden_output:bit(pattern,roles[vtmRole][1]),faulty_output:1-bit(pattern,roles[vtmRole][1])},descriptorState:{label:"DETECTED",rank:1000,progress:maxProgress,need:Math.max(...(variant.agr||[]).map(condition=>Number(condition.repeat||1)),1),killed:false}};
         }

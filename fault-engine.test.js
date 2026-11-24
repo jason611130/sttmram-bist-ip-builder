@@ -60,6 +60,29 @@ const editableDirfResult=engine.simulate({
 assert.equal(editableDirfResult.models[0].coverage,100,"editable RAMSES descriptor must drive simulation");
 assert.match(editableDirfResult.models[0].first_detection.instance,/editable-dIRF0/);
 
+const editableRdf={RDF:{supported:true,ramsesVariants:[
+  {id:"editable-RDF0",suspect:"@",agr:[{flag:"R0",repeat:1,timing:"any"}],vtm:[{flag:"R0",repeat:1,timing:"next"}],rcv:[{flag:"W0",repeat:1},{flag:"W1",repeat:1}]}
+]}};
+const rdfOneRead=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["RDF"],maxInstances:1000,descriptorOverrides:editableRdf,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]
+});
+assert.equal(rdfOneRead.models[0].coverage,0,"RDF activation read must not also be its VTM read");
+const rdfTwoReads=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["RDF"],maxInstances:1000,descriptorOverrides:editableRdf,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"},{kind:"r",pattern:"0"}]}]
+});
+assert.equal(rdfTwoReads.models[0].coverage,100,"RDF must be detected by the next matching read");
+
+const editableSaf={SAF:{supported:true,ramsesVariants:[
+  {id:"editable-SA0",suspect:"@",agr:[{flag:"W1",repeat:1}],vtm:[{flag:"R1",repeat:1}],rcv:[{flag:"W0",repeat:1}]}
+]}};
+const safRecovered=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["SAF"],maxInstances:1000,descriptorOverrides:editableSaf,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"1"},{kind:"w",pattern:"0"},{kind:"r",pattern:"1"}]}]
+});
+assert.equal(safRecovered.models[0].coverage,0,"SA0 W0 recovery must clear the pending fault effect");
+
 const tf=engine.simulate({
   memory:{depth:4,dataWidth:2},faults:["TF"],maxInstances:1000,
   sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"w",pattern:"1"},{kind:"r",pattern:"1"},{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]
@@ -72,6 +95,11 @@ const staticReadFaults=engine.simulate({
 });
 assert.equal(staticReadFaults.models.find(model=>model.id==="RDF").coverage,100);
 assert.equal(staticReadFaults.models.find(model=>model.id==="DRF").coverage,100);
+const builtInRdfOneRead=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["RDF"],maxInstances:1000,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]
+});
+assert.equal(builtInRdfOneRead.models[0].coverage,0,"built-in RDF requires a later observation read");
 
 const wdf=engine.simulate({
   memory:{depth:4,dataWidth:2},faults:["WDF"],maxInstances:1000,

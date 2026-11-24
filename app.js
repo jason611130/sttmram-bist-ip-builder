@@ -8,7 +8,7 @@ let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
 let browserDescriptorOverrides={};try{browserDescriptorOverrides=JSON.parse(localStorage.getItem("sttmram-ramses-descriptor-overrides-v1"))||{}}catch{browserDescriptorOverrides={}}
 let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
-const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.33.0");
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.34.0");
 bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
 bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
 function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
@@ -655,7 +655,7 @@ function faultExplanation(f,a){
     SAF:{fault:"記憶單元永久固定在 0 或 1；不論寫入什麼資料，cell 都無法離開固定值。",detect:"分別寫入全 0 與全 1後讀回；固定值與 expected data 不同時，comparator 會產生 mismatch。",refs:transitions.slice(0,4)},
     TF:{fault:"記憶單元有一個轉換方向失效，例如無法由 0→1 或無法由 1→0。",detect:"強制執行 00→11 與 11→00，再緊接著讀回；未完成轉換的 cell 會被抓到。",refs:transitions.slice(0,5)},
     SWF:{fault:"Slow write fault：cell 的 switching time 超過指定 write pulse，短脈衝寫入無法完成轉換。",detect:"必須加入 at-speed／short-pulse write（ws）再讀回；一般 untimed March write 無法把 SWF 與 TF 分開。",refs:[]},
-    RDF:{fault:"Read destructive fault：讀取動作使 cell 內容翻轉，而且本次 read 立即回傳錯誤值。",detect:"寫入已知背景後讀回；fault 在 sense 前破壞 cell，當次 comparator 即產生 mismatch。",refs:allReads.slice(0,6)},
+    RDF:{fault:"Read destructive fault：第一次 read 回傳原值，但讀取動作會翻轉 cell 內容。",detect:"寫入已知背景後連續讀取兩次；第一次 read 激發並破壞內容，下一次 read 才由 comparator 觀察 mismatch。",refs:repeatedTwice},
     DRF:{fault:"Deceptive read destructive fault：第一次 read 回傳正確值，但 read 後 cell 已翻轉。",detect:"在同一 March element 內對相同 address 連續讀兩次；第二次 read 才觀察到第一次留下的破壞。",refs:repeatedTwice},
     IRF:{fault:"Cell 內部資料仍然正確，但 sense／read path 回傳錯誤值；讀取不一定會改變儲存狀態。",detect:"每次 read 都和 expected pattern 比較，感測值錯誤時 comparator 立即將 fail 拉高。",refs:allReads.slice(0,6)},
     CFwd:{fault:"Write-disturb coupling fault：寫入 aggressor bit 時產生擾動，造成同一 word 或鄰近的 victim bit 改變。",detect:"使用 01／10 checkerboard 讓 aggressor 與 victim 交替切換，再讀回確認 victim 沒有被寫入動作干擾。",refs:checker},

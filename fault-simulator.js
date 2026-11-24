@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const descriptors=FaultEngine.descriptors;
 let priority=descriptors.map(x=>x.id),selected=new Set(priority),synthesis=null,chosen=null,requestId=0;
 const pending=new Map();
-const worker=new Worker("fault-worker.js?v=2.33.0");
+const worker=new Worker("fault-worker.js?v=2.34.0");
 worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.ok?p.resolve(data.result):p.reject(new Error(data.error))};
 worker.onerror=error=>setStatus(`Worker 錯誤：${error.message}`,"error");
 function callWorker(type,payload){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload})})}
@@ -13,9 +13,9 @@ const descriptorStorageKey="sttmram-ramses-descriptor-overrides-v1";
 let descriptorOverrides={},editingDescriptorId=null;
 try{descriptorOverrides=JSON.parse(localStorage.getItem(descriptorStorageKey))||{}}catch{descriptorOverrides={}}
 const descriptorTemplates={
-  SAF:`# SA0\nAGR := W1\nSPT := @\nVTM := R1\nRCV := -\n\n# SA1\nAGR := W0\nSPT := @\nVTM := R0\nRCV := -`,
+  SAF:`# SA0\nAGR := W1\nSPT := @\nVTM := R1\nRCV := W0\n\n# SA1\nAGR := W0\nSPT := @\nVTM := R0\nRCV := W1`,
   TF:`# TF0to1\nAGR := UTR\nSPT := @\nVTM := R1\nRCV := W0\n\n# TF1to0\nAGR := DTR\nSPT := @\nVTM := R0\nRCV := W1`,
-  RDF:`# RDF0\nAGR := R0\nSPT := @\nVTM := R0\nRCV := W0, W1\n\n# RDF1\nAGR := R1\nSPT := @\nVTM := R1\nRCV := W0, W1`,
+  RDF:`# RDF0\nAGR := R0\nSPT := @\nVTM := NEXT(R0)\nRCV := W0, W1\n\n# RDF1\nAGR := R1\nSPT := @\nVTM := NEXT(R1)\nRCV := W0, W1`,
   CFwd:`# CFwd_UTR_V0\nAGR := UTR\nSPT := *\nVTM := R0\nRCV := W0, W1\n\n# CFwd_UTR_V1\nAGR := UTR\nSPT := *\nVTM := R1\nRCV := W0, W1\n\n# CFwd_DTR_V0\nAGR := DTR\nSPT := *\nVTM := R0\nRCV := W0, W1\n\n# CFwd_DTR_V1\nAGR := DTR\nSPT := *\nVTM := R1\nRCV := W0, W1`,
   WDF:`# WDF0\nAGR := NW0\nSPT := @\nVTM := R0\nRCV := W1\n\n# WDF1\nAGR := NW1\nSPT := @\nVTM := R1\nRCV := W0`,
   IRF:`# IRF0\nAGR := R0\nSPT := @\nVTM := R0\nRCV := W0, W1\n\n# IRF1\nAGR := R1\nSPT := @\nVTM := R1\nRCV := W0, W1`,
@@ -30,12 +30,13 @@ const descriptorTemplates={
 };
 function parseDescriptorCondition(token,lineNumber){
   let value=token.trim().toUpperCase();if(!value||value==="-")return null;
+  let timing="any";const timed=value.match(/^(NEXT|SAME)\((.+)\)$/);if(timed){timing=timed[1].toLowerCase();value=timed[2].trim()}
   const predecessor=value.endsWith("+PRE");if(predecessor)value=value.slice(0,-4);
   let repeat=1;const repeated=value.match(/^(R[01])X(\d+)$/);if(repeated){value=repeated[1];repeat=Number(repeated[2])}
   const allowed=["R0","R1","W0","W1","WS0","WS1","UTR","DTR","NW0","NW1","IDLE0","IDLE1","*"];
   if(!allowed.includes(value))throw new Error(`第 ${lineNumber} 行：不支援的 operation flag「${token.trim()}」`);
   if(!Number.isInteger(repeat)||repeat<1||repeat>100)throw new Error(`第 ${lineNumber} 行：repeat 必須為 1–100`);
-  return {flag:value,repeat,predecessor};
+  return {flag:value,repeat,predecessor,timing};
 }
 function parseDescriptorSource(source){
   const variants=[];let current=null;
