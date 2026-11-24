@@ -426,6 +426,194 @@
     const metrics=evaluate(elements,faults,descriptorOverrides),usedN=countN(elements);
     return {schema:"sttmram-tags-analysis/v1",method:"Fixed-Algorithm Fault-Descriptor TAGS Analysis",canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,candidate:{...metrics,rank:1,name:request.name||`Existing March ${usedN}N`,usedN,elements},elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6};
   }
+  // Search by operation count. Compound edits land in their true N bucket.
+  // The beam is a heuristic; only full-geometry simulation accepts a solution.
+  function searchMarch(request){
+    const started=performance.now();
+    const {memory,maxInstances,couplingRelation,descriptorOverrides={}}=request;
+    const {maxN}=request,limit=request.frontierLimit??200;
+    const faults=[...new Set(request.faults||[])].filter(id=>byId[id]);
+    const {read=1,write=1}=request.operationCosts||{};
+    if(!Number.isInteger(maxN)||maxN<1||maxN>100)throw new Error("Maximum N 必須為 1–100");
+    if(!Number.isInteger(limit)||limit<10||limit>1000)throw new Error("Frontier limit 必須為 10–1000");
+    if(!faults.length)throw new Error("至少選擇一種 Fault");
+    if(![read,write].every(value=>Number.isSafeInteger(value)&&value>0))throw new Error("讀寫成本必須為正整數");
+    const targets=Object.fromEntries(faults.map(id=>[id,request.coverageTargets?.[id]??request.coverageTarget??100]));
+    if(Object.values(targets).some(value=>!Number.isFinite(value)||value<0||value>100))throw new Error("Coverage 目標必須為 0–100%");
+    const cost=elements=>elements.reduce((sum,element)=>sum+element.operations.reduce((total,op)=>total+(op.kind==="r"?read:write),0),0);
+    const run=(elements,geometry)=>simulate({memory:geometry,sequence:elements,faults,maxInstances,couplingRelation,descriptorOverrides});
+    const meets=(detected,injected,target)=>detected>=Math.ceil(target*injected/100-1e-8);
+    const classify=result=>{
+      const unavailable=result.models.filter(model=>model.status==="unsupported"||model.status==="not-applicable").map(model=>model.id);
+      const unmet=result.models.filter(model=>!unavailable.includes(model.id)&&(model.status!=="complete"||!model.injected||!meets(model.detected,model.injected,targets[model.id]))).map(model=>model.id);
+      return {unavailable,unmet,met:!unmet.length&&result.models.some(model=>model.injected&&model.status==="complete")};
+    };
+    const buckets=Array.from({length:maxN+1},()=>new Map()),history=[];
+    const checked=new Set(),verified=[];
+    let evaluatedCandidates=0,best=null,shortlist=[];
+    const put=(elements,family)=>{
+      const usedN=countN(elements);
+      if(!usedN||usedN>maxN||(best&&cost(elements)>=best.estimatedCost))return;
+      let list=buckets[usedN].get(family);
+      if(!list)buckets[usedN].set(family,list=new Map());
+      if(list.size<limit*2)list.set(candidateKey(elements),elements);
+    };
+    const assess=elements=>({elements,usedN:countN(elements),estimatedCost:cost(elements),...evaluate(elements,faults,descriptorOverrides)});
+    function verify(candidate){
+      const key=candidateKey(candidate.elements);
+      if(checked.has(key))return null;
+      checked.add(key);
+      const result=run(candidate.elements,memory),status=classify(result);
+      const entry={...candidate,...status,result};
+      verified.push(entry);
+      if(entry.met&&(!best||entry.estimatedCost<best.estimatedCost||entry.estimatedCost===best.estimatedCost&&entry.elements.length<best.elements.length))best=entry;
+      return entry;
+    }
+    function compare(a,b){
+      if(a.met!==b.met)return a.met?-1:1;
+      if(a.met)return a.estimatedCost-b.estimatedCost||a.usedN-b.usedN||a.elements.length-b.elements.length;
+      for(const id of faults){
+        const coverage=entry=>(entry.result?entry.result.models.find(model=>model.id===id)?.coverage:entry.coverages[id])??-1;
+        const delta=Math.min(targets[id],coverage(b))-Math.min(targets[id],coverage(a));
+        if(delta)return delta;
+      }
+      return compareCandidates(a,b,faults)||a.estimatedCost-b.estimatedCost;
+    }
+    function retain(candidates){
+      const groups=[[],[],[]];
+      for(const candidate of candidates.sort(compare)){
+        const elements=candidate.elements;
+        const group=elements.length===1?0:elements.every(element=>element.direction===elements[0].direction)?1:2;
+        groups[group].push(candidate);
+      }
+      const retained=[];
+      for(let i=0;retained.length<limit&&groups.some(group=>i<group.length);i++){
+        for(const group of groups)if(group[i]&&retained.length<limit)retained.push(group[i]);
+      }
+      return retained;
+    }
+    // Expand the final element and independently try whole-memory passes.
+    // Reading an already-activated victim is tried before starting a new write.
+    function* extensions(candidate){
+      const elements=candidate.elements,last=elements.at(-1),background=patternBefore(elements,elements.length);
+      const missing=faults.filter(id=>candidate.coverages[id]!=null&&candidate.coverages[id]<targets[id]);
+      const repeats=new Set(),targetWrites=new Set();
+      for(const id of missing){
+        const model=descriptorOverrides[id]||byId[id];
+        for(const variant of model.ramsesVariants||model.variants||[]){
+          const triggers=variant.agr||[variant.trigger];
+          for(const trigger of triggers){
+            if(trigger?.repeat>1)repeats.add(trigger.repeat);
+            const flag=trigger?.flag;
+            const target=trigger?.transition?.at(-1)??trigger?.value??
+              ({W0:"0",W1:"1",NW0:"0",NW1:"1",UTR:"1",DTR:"0"})[flag];
+            if(target!=null)targetWrites.add(String(target));
+          }
+        }
+      }
+      const writes=[...new Set([...targetWrites,...patterns.filter(pattern=>pattern!==background),background])];
+      const r={kind:"r",pattern:background};
+      const extend=operations=>[...elements.slice(0,-1),{...last,operations:[...last.operations,...operations]}];
+      yield [extend([r]),"extend"];
+      for(const direction of directions)yield [[...elements,{direction,operations:[r]}],"pass"];
+      for(const repeat of repeats){
+        let trailing=0;
+        for(let i=last.operations.length-1;i>=0&&last.operations[i].kind==="r";i--)trailing++;
+        if(repeat-trailing>1)yield [extend(Array.from({length:repeat-trailing},()=>r)),"repeat"];
+      }
+      for(const pattern of writes){
+        const w={kind:"w",pattern},verify={kind:"r",pattern};
+        yield [extend([w]),"extend"];
+        yield [extend([w,verify]),"pair"];
+        for(const direction of directions){
+          yield [[...elements,{direction,operations:[w]}],"pass"];
+          yield [[...elements,{direction,operations:[r,w]}],"march"];
+          yield [[...elements,{direction,operations:[w,verify]}],"march"];
+        }
+      }
+    }
+    for(const pattern of patterns)for(const direction of directions)put([{direction,operations:[{kind:"w",pattern}]}],"root");
+    const seeds=request.seeds||[];
+    const combinations=seeds.flatMap((left,index)=>seeds.slice(index+1).map(right=>[...left,...right]));
+    for(const elements of [...seeds,...combinations,seeds.flat()]){
+      if(countN(elements)>maxN||!countN(elements))continue;
+      const candidate=assess(elements);
+      verify(candidate);
+      // Keep shorter prefixes of known algorithms eligible for recombination.
+      for(let end=1;end<=elements.length;end++)put(elements.slice(0,end),"seed");
+    }
+    for(let n=1;n<=maxN;n++){
+      if(best&&n*Math.min(read,write)>=best.estimatedCost)break;
+      const layer=new Map();
+      function add(elements){
+        const key=candidateKey(elements);
+        if(!layer.has(key)&&(!best||cost(elements)<best.estimatedCost)){
+          layer.set(key,assess(elements));
+          evaluatedCandidates++;
+        }
+      }
+      for(const family of buckets[n].values())for(const elements of family.values())add(elements);
+      buckets[n].clear();
+      let beam=retain([...layer.values()]);
+      // Split at every boundary of the leading candidates in this layer.
+      // A split changes address order, not N, and must be simulated again.
+      for(const candidate of beam.slice(0,Math.min(16,limit))){
+        candidate.elements.forEach((element,index)=>{
+          for(let cut=1;cut<element.operations.length;cut++)for(const direction of directions){
+            add([...candidate.elements.slice(0,index),
+              {...element,operations:element.operations.slice(0,cut)},
+              {direction,operations:element.operations.slice(cut)},...candidate.elements.slice(index+1)]);
+          }
+        });
+      }
+      beam=retain([...layer.values()]);
+      shortlist=[...shortlist,...beam].sort(compare).slice(0,8);
+      const ready=beam.filter(candidate=>faults.some(id=>candidate.coverages[id]!=null)&&faults.every(id=>candidate.coverages[id]==null||candidate.coverages[id]>=targets[id]));
+      ready.sort((a,b)=>a.estimatedCost-b.estimatedCost);
+      for(const candidate of ready.slice(0,6))if(!best||candidate.estimatedCost<best.estimatedCost)verify(candidate);
+      history.push({n,kept:beam.length,generated:layer.size,activeFault:activeTargetFault([...beam].sort(compare)[0],faults)});
+      const iterators=beam.map(extensions);
+      for(let next=iterators.map(iterator=>iterator.next());next.some(item=>!item.done);next=iterators.map(iterator=>iterator.next())){
+        for(const item of next)if(!item.done)put(...item.value);
+      }
+    }
+    for(const candidate of shortlist)if(!best||candidate.estimatedCost<best.estimatedCost)verify(candidate);
+    // Remove redundant operations or join adjacent passes only after full verification.
+    if(best){
+      let trials=0,improved=true;
+      while(improved&&trials<32){
+        improved=false;
+        const current=best;
+        outer:for(let ei=current.elements.length-1;ei>=0;ei--){
+          const element=current.elements[ei];
+          if(ei>0&&trials<32){
+            const previous=current.elements[ei-1];
+            if(previous.direction===element.direction){
+              const trial=[...current.elements.slice(0,ei-1),
+                {...previous,operations:[...previous.operations,...element.operations]},...current.elements.slice(ei+1)];
+              trials++;
+              if(verify(assess(trial))?.met){improved=true;break outer;}
+            }
+          }
+          for(let oi=element.operations.length-1;oi>=0&&trials<32;oi--){
+            let trial=clone(current.elements);
+            trial[ei].operations.splice(oi,1);
+            if(!trial[ei].operations.length)trial.splice(ei,1);
+            if(!trial.length||trial[0].operations[0].kind!=="w")continue;
+            trial=normalizeReadPatterns(trial);
+            trials++;
+            if(verify(assess(trial))?.met){improved=true;break outer;}
+          }
+        }
+      }
+    }
+    const candidates=verified.sort(compare).slice(0,5).map((entry,index)=>({
+      ...entry,rank:index+1,name:`Descriptor Beam March ${entry.usedN}N · Candidate ${index+1}`,
+      coverages:Object.fromEntries(entry.result.models.map(model=>[model.id,model.coverage]))
+    }));
+    return {candidates,history,targets,evaluatedCandidates,maxN,frontierLimit:limit,stoppedAtN:history.at(-1)?.n??0,
+      activeTargetFault:candidates[0]?.unmet[0],elapsedSeconds:(performance.now()-started)/1000};
+  }
   function optimize(request){
     const started=performance.now(),faults=request.faults||descriptors.map(x=>x.id),descriptorOverrides=request.descriptorOverrides||{};let elements=groupMarchElements(request.sequence||request.elements||[]);
     if(!elements.length)throw new Error("Optimization sequence 不可為空");
@@ -440,5 +628,20 @@
     const metrics=evaluate(elements,faults,descriptorOverrides),usedN=countN(elements);
     return {schema:"sttmram-tags-optimization/v1",method:"Coverage-Preserving Greedy Irredundancy",canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,originalN,usedN,removedN,passes,candidate:{...metrics,rank:1,name:request.name||`Optimized March ${usedN}N`,usedN,elements,originalN,removedN},elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6};
   }
-  return {descriptors:clone(descriptors),simulate,synthesize,analyze,optimize,countN,groupMarchElements};
+  function parseCoverageTargets(source){
+    const targets={};
+    for(const entry of source.trim().split(/[,，]/).filter(Boolean)){
+      const match=entry.trim().match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)\s*%?$/);
+      if(!match||!byId[match[1]]||Number(match[2])>100)throw new Error(`Coverage 目標格式錯誤：${entry}（例如 AF=90）`);
+      targets[match[1]]=Number(match[2]);
+    }
+    return targets;
+  }
+  function searchStatus(candidate){
+    const outcome=candidate.met?"找到通過完整驗證的最低成本候選":
+      candidate.unmet.length?`未達目標：${candidate.unmet.join("、")}。顯示目前最佳候選`:"目前沒有可驗證的 fault";
+    const unavailable=candidate.unavailable.length?` · N/A：${candidate.unavailable.join("、")}`:"";
+    return `${outcome} · ${candidate.usedN}N · 成本 ${candidate.estimatedCost}／address${unavailable}`;
+  }
+  return {descriptors:clone(descriptors),simulate,synthesize,searchMarch,parseCoverageTargets,searchStatus,analyze,optimize,countN,groupMarchElements};
 });

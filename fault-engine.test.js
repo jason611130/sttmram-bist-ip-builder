@@ -193,4 +193,25 @@ const rtfWithIdle=engine.simulate({
 });
 assert.equal(rtfWithIdle.models[0].coverage,100);
 
-console.log("fault-engine descriptor-progress tests passed");
+const beamMemory={depth:4,dataWidth:4};
+const beamDirf=engine.searchMarch({memory:beamMemory,faults:["dIRF"],maxN:5,
+  frontierLimit:30,coverageTargets:engine.parseCoverageTargets("dIRF=50"),
+  operationCosts:{read:2,write:3}});
+const dirfWinner=beamDirf.candidates[0];
+assert.equal(dirfWinner.met,true);
+assert.equal(dirfWinner.usedN,5);
+assert.equal(dirfWinner.estimatedCost,11);
+assert.equal(dirfWinner.result.memory.dataWidth,4);
+assert.ok(dirfWinner.elements.some(element=>element.operations.filter(op=>op.kind==="r").length===4));
+assert.ok(beamDirf.history.every(level=>level.kept<=30));
+
+const beamAddress=engine.searchMarch({memory:beamMemory,faults:["AF"],maxN:10});
+assert.equal(beamAddress.candidates[0].result.models[0].coverage,100);
+assert.ok(beamAddress.candidates[0].elements.length>1);
+
+const tooShort=engine.searchMarch({memory:beamMemory,faults:["dIRF","RTF"],maxN:4,frontierLimit:30});
+assert.equal(tooShort.candidates[0].met,false);
+assert.deepEqual(tooShort.candidates[0].unmet,["dIRF"]);
+assert.deepEqual(tooShort.candidates[0].unavailable,["RTF"]);
+
+console.log("fault-engine descriptor-progress and beam-search tests passed");

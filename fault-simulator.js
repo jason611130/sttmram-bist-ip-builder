@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const descriptors=FaultEngine.descriptors;
 let priority=descriptors.map(x=>x.id),selected=new Set(priority),synthesis=null,chosen=null,requestId=0;
 const pending=new Map();
-const worker=new Worker("fault-worker.js?v=2.36.0");
+const worker=new Worker("fault-worker.js?v=2.37.0");
 worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.ok?p.resolve(data.result):p.reject(new Error(data.error))};
 worker.onerror=error=>setStatus(`Worker 錯誤：${error.message}`,"error");
 function callWorker(type,payload){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload})})}
@@ -66,7 +66,7 @@ function setStatus(text,state="ready"){$("workerStatus").className=`worker-statu
 function saveSettings(){localStorage.setItem("sttmram-simulator-settings",JSON.stringify({depth:+$("simDepth").value,width:+$("simWidth").value,budget:+$("simBudget").value,attempts:+$("simAttempts").value,prioritySchema:4,priority,selected:[...selected],analysisMode,existing:Object.fromEntries(fixedAlgorithms.map(algorithm=>[algorithm.id,{selected:$("existing"+algorithm.id).checked}]))}))}
 function moveConditionalFaultsLast(ids){const tail=["RTF","TRDF","TWF","SWF"];return [...ids.filter(id=>!tail.includes(id)),...tail.filter(id=>ids.includes(id))]}
 function loadSettings(){try{const s=JSON.parse(localStorage.getItem("sttmram-simulator-settings"));if(!s)return;const schema=Number(s.prioritySchema||0);if(schema<4&&(!s.attempts||Number(s.attempts)===60))s.attempts=200;$("simDepth").value=s.depth||256;$("simWidth").value=s.width||32;$("simBudget").value=s.budget||12;$("simAttempts").value=s.attempts||200;analysisMode=s.analysisMode==="existing"?"existing":"search";document.querySelector(`input[name="analysisMode"][value="${analysisMode}"]`).checked=true;fixedAlgorithms.forEach(algorithm=>{const saved=s.existing?.[algorithm.id];if(saved)$("existing"+algorithm.id).checked=Boolean(saved.selected)});const previousPriority=Array.isArray(s.priority)?s.priority:[];if(previousPriority.length)priority=[...previousPriority.filter(id=>descriptors.some(d=>d.id===id)),...descriptors.map(d=>d.id).filter(id=>!previousPriority.includes(id))];if(schema<3)priority=moveConditionalFaultsLast(priority);if(Array.isArray(s.selected)){selected=new Set(s.selected);descriptors.filter(d=>!previousPriority.includes(d.id)).forEach(d=>selected.add(d.id))}delete s.relation;s.prioritySchema=4;s.priority=priority;s.selected=[...selected];localStorage.setItem("sttmram-simulator-settings",JSON.stringify(s))}catch{}}
-function renderAnalysisMode(){analysisMode=document.querySelector('input[name="analysisMode"]:checked')?.value||"search";$("searchModePanel").hidden=analysisMode!=="search";$("existingModePanel").hidden=analysisMode!=="existing";$("searchBtn").textContent=analysisMode==="search"?"執行 Hybrid TAGS 搜尋":"分析已開發的 March 演算法";$("candidateMeta").textContent=analysisMode==="search"?"尚未搜尋":"尚未分析";saveSettings()}
+function renderAnalysisMode(){analysisMode=document.querySelector('input[name="analysisMode"]:checked')?.value||"search";$("searchModePanel").hidden=analysisMode!=="search";$("existingModePanel").hidden=analysisMode!=="existing";$("searchBtn").textContent=analysisMode==="search"?"搜尋最快 March":"分析已開發的 March 演算法";$("candidateMeta").textContent=analysisMode==="search"?"尚未搜尋":"尚未分析";saveSettings()}
 function descriptorInstances(d,depth,width,relation){
   if(!d.supported||d.required_operation&&!d.ramsesVariants)return 0;
   const activeRelation=d.ramsesVariants?(d.ramsesVariants.some(variant=>variant.suspect==="#")?"adjacent_address":d.ramsesVariants.some(variant=>variant.suspect==="*")?"same_word_adjacent":"single"):d.relation;
@@ -109,11 +109,11 @@ const opText=op=>`${op.kind}${op.pattern}`;
 function groupedElements(elements){return FaultEngine.groupMarchElements(elements)}
 function sequenceText(elements){return groupedElements(elements).map((e,i)=>`M${i} ${e.direction==="down"?"⇓":"⇑"} (${e.operations.map(opText).join(", ")})`).join("; ")}
 function renderCandidates(){
-  $("candidateMeta").textContent=synthesis.mode==="existing"?`Existing March TAGS · ${synthesis.candidates.length} candidates · ${synthesis.elapsedSeconds.toFixed(3)} s`:`Hybrid TAGS ${synthesis.stoppedAtN}N · target ${synthesis.activeTargetFault||"complete"} · ${synthesis.evaluatedCandidates} candidates · ${synthesis.elapsedSeconds.toFixed(3)} s`;
+  $("candidateMeta").textContent=synthesis.mode==="existing"?`Existing March TAGS · ${synthesis.candidates.length} candidates · ${synthesis.elapsedSeconds.toFixed(3)} s`:`Beam Search · 評估 ${synthesis.evaluatedCandidates.toLocaleString()} 個搜尋候選 · ${synthesis.elapsedSeconds.toFixed(3)} s`;
   $("candidateList").innerHTML=synthesis.candidates.map(c=>`<article class="candidate-card ${chosen&&chosen.rank===c.rank?"chosen":""}"><div class="candidate-score"><small>HYBRID PRIORITY SCORE</small><strong>${c.score.toFixed(1)}%</strong></div><div><h3>${esc(c.name)}</h3><p>${esc(sequenceText(c.elements))}</p><div class="coverage-chips">${Object.entries(c.coverages).map(([id,v])=>{const p=Number(c.descriptorProgress?.[id]);return `<span>${id} D ${v==null?"N/A":`${Number(v).toFixed(0)}%`} · P ${Number.isFinite(p)&&p>=0?`${(p/10).toFixed(0)}%`:"N/A"}</span>`}).join("")}</div></div><button data-rank="${c.rank}" type="button">${chosen&&chosen.rank===c.rank?"已選擇":"選擇"}</button></article>`).join("");
   $("candidateList").querySelectorAll("button").forEach(button=>button.onclick=()=>selectCandidateAndUpdate(Number(button.dataset.rank)));
 }
-function chooseCandidate(rank){chosen=synthesis.candidates.find(x=>x.rank===rank);renderCandidates();$("selectedSequence").innerHTML=`<div class="sequence-summary"><strong>${esc(chosen.name)}</strong><span>${chosen.usedN}N · detected score ${chosen.score.toFixed(1)}% · Hybrid Pareto priority</span></div><div class="sequence-elements">${groupedElements(chosen.elements).map((e,i)=>`<article><span>M${i}</span><strong>${e.direction==="down"?"⇓ down":"⇑ up"}</strong><code>${esc(e.operations.map(opText).join(", "))}</code></article>`).join("")}</div>`;$("simulateBtn").disabled=false;$("useBuilderBtn").disabled=false;const {depth,width}=validate();$("fullRunHint").textContent=`將在 ${depth} × ${width} memory 上依序注入。`}
+function chooseCandidate(rank){chosen=synthesis.candidates.find(x=>x.rank===rank);renderCandidates();$("selectedSequence").innerHTML=`<div class="sequence-summary"><strong>${esc(chosen.name)}</strong><span>${chosen.usedN}N · detected score ${chosen.score.toFixed(1)}% ${chosen.estimatedCost==null?"":` · 成本 ${chosen.estimatedCost}／address`}</span></div><div class="sequence-elements">${groupedElements(chosen.elements).map((e,i)=>`<article><span>M${i}</span><strong>${e.direction==="down"?"⇓ down":"⇑ up"}</strong><code>${esc(e.operations.map(opText).join(", "))}</code></article>`).join("")}</div>`;$("simulateBtn").disabled=false;$("useBuilderBtn").disabled=false;const {depth,width}=validate();$("fullRunHint").textContent=`將在 ${depth} × ${width} memory 上依序注入。`}
 async function selectCandidateAndUpdate(rank){try{chooseCandidate(rank);setStatus(`${chosen.name} 已選定，正在更新 Fault Coverage…`,"busy");await simulate(true)}catch{}}
 function setBusy(busy,label){$("searchBtn").disabled=busy;$("simulateBtn").disabled=busy||!chosen;document.querySelectorAll(".candidate-card button").forEach(button=>button.disabled=busy);if(busy)setStatus(label,"busy")}
 function compareFullGeometry(a,b,faults){const map=result=>Object.fromEntries(result.models.map(model=>[model.id,model.coverage==null?-1:Number(model.coverage)])),am=map(a.result),bm=map(b.result);for(const fault of faults){const delta=(bm[fault]??-1)-(am[fault]??-1);if(delta)return delta}return Number(b.result.summary.weightedCoverage??-1)-Number(a.result.summary.weightedCoverage??-1)||a.candidate.usedN-b.candidate.usedN}
@@ -137,7 +137,33 @@ async function analyzeExisting(c){
   chosen=synthesis.candidates[0];renderCandidates();chooseCandidate(chosen.rank);renderFaultCards(verified[0].result);
   setStatus(`既有演算法 TAGS 分析完成：${chosen.name} · ${fmt(verified[0].result.summary.detected)} / ${fmt(verified[0].result.summary.injected)} detected`,"done");
 }
-async function search(){try{const c=validate();saveSettings();if(analysisMode==="existing"){setBusy(true,"正在分析既有 March 演算法…");await analyzeExisting(c);return}setBusy(true,`Hybrid TAGS 正從 1N 逐層擴展至最多 ${c.budget}N…`);synthesis=await callWorker("synthesize",{maxN:c.budget,frontierLimit:c.attempts,faults:c.faults,descriptorOverrides:descriptorOverridesPayload()});synthesis.mode="search";chosen=null;renderCandidates();if(!synthesis.candidates.length)throw new Error("沒有可用候選演算法");const verified=[];for(let index=0;index<synthesis.candidates.length;index++){const candidate=synthesis.candidates[index];setStatus(`Hybrid TAGS 已停在 ${synthesis.stoppedAtN}N；正在驗證候選 ${index+1}/${synthesis.candidates.length}…`,"busy");const result=await callWorker("simulate",{memory:{depth:c.depth,dataWidth:c.width},algorithm:candidate.name,operationComplexity:`${candidate.usedN}N`,sequence:candidate.elements,faults:c.faults,couplingRelation:c.relation,maxInstances:c.limit,descriptorOverrides:descriptorOverridesPayload()});verified.push({candidate,result})}verified.sort((a,b)=>compareFullGeometry(a,b,c.faults));chosen=verified[0].candidate;renderCandidates();chooseCandidate(chosen.rank);renderFaultCards(verified[0].result);setStatus(`Hybrid TAGS 與完整模擬完成：${fmt(verified[0].result.summary.detected)} / ${fmt(verified[0].result.summary.injected)} instances detected`,"done")}catch(error){setStatus(error.message,"error")}finally{setBusy(false,"")}}
+async function search(){
+  try{
+    const c=validate();
+    saveSettings();
+    if(analysisMode==="existing"){
+      setBusy(true,"正在分析既有 March 演算法…");
+      await analyzeExisting(c);
+      return;
+    }
+    const coverageTarget=$("simCoverageTarget").valueAsNumber;
+    const coverageTargets=FaultEngine.parseCoverageTargets($("simCoverageOverrides").value);
+    const operationCosts={read:$("simReadCost").valueAsNumber,write:$("simWriteCost").valueAsNumber};
+    const seeds=fixedAlgorithms.map(algorithm=>algorithm.sequence);
+    setBusy(true,`搜尋最多 ${c.budget}N，並驗證完整 memory geometry…`);
+    const result=await callWorker("searchMarch",{
+      maxN:c.budget,frontierLimit:c.attempts,faults:c.faults,
+      memory:{depth:c.depth,dataWidth:c.width},maxInstances:c.limit,couplingRelation:c.relation,
+      descriptorOverrides:descriptorOverridesPayload(),seeds,coverageTarget,coverageTargets,operationCosts
+    });
+    if(!result.candidates.length)throw new Error("沒有可用候選演算法");
+    synthesis={...result,mode:"search"};
+    chooseCandidate(1);
+    renderFaultCards(chosen.result);
+    setStatus(FaultEngine.searchStatus(chosen),"done");
+  }catch(error){setStatus(error.message,"error")}
+  finally{setBusy(false,"")}
+}
 function witnessText(w){return w?`${w.element} / ${w.operation} @ A${w.address}, B${w.bit}`:"尚無 detection witness"}
 function renderFaultCards(result){
   const colors={SAF:"#78a6d0",TF:"#8ab6a2",SWF:"#b7a36c",RDF:"#c99873",AF:"#9cb0c4",TRDF:"#8d98a3",CFwd:"#d29a9a",CFst:"#c69db7",CFid:"#b99191",CFin:"#a888ba",WDF:"#c47f88",TWF:"#9b8f9d",IRF:"#a996ce",RTF:"#c3ad6e",DRF:"#d7a17d",dIRF:"#7fb7bc",dRDF:"#69a5b5",dTF:"#82a7d1"};
@@ -145,5 +171,11 @@ function renderFaultCards(result){
   const s=result.summary;$("coverageOverall").innerHTML=`<strong>${s.weightedCoverage==null?"—":`${s.weightedCoverage.toFixed(2)}%`}</strong><small>full-geometry instance coverage</small>`;$("coverageFoot").innerHTML=`<span>${result.memory.depth} × ${result.memory.dataWidth}</span><span>${fmt(s.detected)} / ${fmt(s.injected)} detected</span><span>${result.elapsedSeconds.toFixed(3)} s</span><span>${s.executableModels} executable · ${s.unsupportedModels} N/A</span>`;
 }
 async function simulate(auto=false){try{const c=validate();setBusy(true,`正在 ${c.depth} × ${c.width} geometry 注入 fault instances…`);const result=await callWorker("simulate",{memory:{depth:c.depth,dataWidth:c.width},algorithm:chosen.name,operationComplexity:`${chosen.usedN}N`,sequence:chosen.elements,faults:c.faults,couplingRelation:c.relation,maxInstances:c.limit,descriptorOverrides:descriptorOverridesPayload()});renderFaultCards(result);setStatus(`搜尋與完整模擬完成：${fmt(result.summary.detected)} / ${fmt(result.summary.injected)} instances detected`,"done");if(!auto)$("faultChartGrid").scrollIntoView({behavior:"smooth",block:"start"})}catch(error){setStatus(error.message,"error");if(auto)throw error}finally{setBusy(false,"")}}
-function useInBuilder(){if(!chosen)return;localStorage.setItem("sttmram-custom-march",JSON.stringify(chosen));localStorage.setItem("sttmram-custom-march-enabled","true");setStatus(`${chosen.name} 已儲存，正在開啟 BIST Builder…`,"done");setTimeout(()=>location.href="index.html?custom=1",350)}
+function useInBuilder(){
+  if(!chosen)return;
+  const {result,...sequence}=chosen;
+  localStorage.setItem("sttmram-custom-march",JSON.stringify(sequence));
+  localStorage.setItem("sttmram-custom-march-enabled","true");
+  location.href="index.html?custom=1";
+}
 loadSettings();renderPriority();renderAnalysisMode();$("searchBtn").onclick=search;$("simulateBtn").onclick=simulate;$("useBuilderBtn").onclick=useInBuilder;$("descriptorSaveBtn").onclick=saveDescriptorEditor;$("descriptorResetBtn").onclick=resetDescriptorEditor;$("descriptorCloseBtn").onclick=()=>{$("descriptorEditor").hidden=true};[$("simDepth"),$("simWidth")].forEach(x=>x.addEventListener("input",updateAutoLimit));document.querySelectorAll('input[name="analysisMode"]').forEach(input=>input.addEventListener("change",()=>{synthesis=null;chosen=null;$("candidateList").innerHTML="";$("selectedSequence").innerHTML='<p class="empty-state">執行分析後，這裡會顯示完整執行序列。</p>';$("faultChartGrid").innerHTML='<p class="empty-state">執行分析後，coverage 會顯示在這裡。</p>';$("simulateBtn").disabled=true;$("useBuilderBtn").disabled=true;renderAnalysisMode()}));document.querySelectorAll("input,select").forEach(x=>x.addEventListener("change",()=>{updateAutoLimit();saveSettings()}));
