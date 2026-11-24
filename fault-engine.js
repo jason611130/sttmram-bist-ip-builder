@@ -134,7 +134,64 @@
     }
     return {detected:false,activated,witness:null,descriptorState:instanceDescriptorState(trigger,effect,golden,faulty,repeats,need,activated,false)};
   }
+  function ramsesConditionMatches(condition,kind,value,before,after,hasPredecessor){
+    const flag=String(condition.flag||"").toUpperCase();
+    if(condition.predecessor&&!hasPredecessor)return false;
+    if(flag==="R0"||flag==="R1")return kind==="r"&&before===Number(flag[1]);
+    if(flag==="W0"||flag==="W1")return (kind==="w"||kind==="ws")&&value===Number(flag[1]);
+    if(flag==="WS0"||flag==="WS1")return kind==="ws"&&value===Number(flag[2]);
+    if(flag==="UTR")return (kind==="w"||kind==="ws")&&before===0&&after===1;
+    if(flag==="DTR")return (kind==="w"||kind==="ws")&&before===1&&after===0;
+    if(flag==="NW0"||flag==="NW1"){const expected=Number(flag[2]);return (kind==="w"||kind==="ws")&&before===expected&&after===expected}
+    if(flag==="IDLE0"||flag==="IDLE1")return kind==="idle"&&before===Number(flag[4]);
+    return flag==="*";
+  }
+  function ramsesSetupReady(conditions,state){
+    return conditions.some(condition=>{
+      const flag=String(condition.flag||"").toUpperCase();
+      if(["R0","UTR","NW0","IDLE0"].includes(flag))return state===0;
+      if(["R1","DTR","NW1","IDLE1"].includes(flag))return state===1;
+      return true;
+    });
+  }
+  function simulateRamsesInstance(variant,roles,elements){
+    const states={};Object.keys(roles).forEach(role=>states[role]=0);
+    const agrRole=variant.suspect==="*"?"AGR":"VTM",vtmRole="VTM",addresses=[...new Set(Object.values(roles).map(location=>location[0]))].sort((a,b)=>a-b),at={};
+    Object.entries(roles).forEach(([role,location])=>(at[location[0]]||(at[location[0]]=[])).push(role));
+    let pending=false,activated=false,recovered=false,maxProgress=0,agrRuns=new Map(),globalStep=0;
+    for(let ei=0;ei<elements.length;ei++){
+      agrRuns=new Map();const element=elements[ei],ordered=element.direction==="down"?[...addresses].reverse():addresses;
+      for(const address of ordered)for(let oi=0;oi<(element.operations||[]).length;oi++){
+        globalStep++;const operation=element.operations[oi],kind=operation.kind,pattern=String(operation.pattern||"0"),local=at[address],ctx={};
+        for(const role of local){const before=states[role],value=bit(pattern,roles[role][1]),after=(kind==="w"||kind==="ws")?value:before;ctx[role]={before,value,after}}
+        if(local.includes(agrRole))for(let ci=0;ci<(variant.agr||[]).length;ci++){
+          const condition=variant.agr[ci],c=ctx[agrRole],matched=ramsesConditionMatches(condition,kind,c.value,c.before,c.after,oi>0),run=matched?(agrRuns.get(ci)||0)+1:0,need=Math.max(1,Number(condition.repeat||1));
+          agrRuns.set(ci,run);maxProgress=Math.max(maxProgress,Math.min(run,need));if(matched&&run>=need){pending=true;activated=true}
+        }
+        if(pending&&local.includes(vtmRole)){
+          const c=ctx[vtmRole],matches=conditions=>(conditions||[]).some(condition=>ramsesConditionMatches(condition,kind,c.value,c.before,c.after,oi>0));
+          if(matches(variant.rcv)){pending=false;recovered=true}
+          else if(matches(variant.vtm))return {detected:true,activated:true,witness:{instance:`${variant.id} · ${Object.entries(roles).map(([role,location])=>`${role}=A${location[0]}/B${location[1]}`).join(", ")}`,element:`M${ei}`,operation_index:oi,global_projected_step:globalStep,address,bit:roles[vtmRole][1],role:vtmRole,operation:`${kind}${pattern}`,golden_output:bit(pattern,roles[vtmRole][1]),faulty_output:1-bit(pattern,roles[vtmRole][1])},descriptorState:{label:"DETECTED",rank:1000,progress:maxProgress,need:Math.max(...(variant.agr||[]).map(condition=>Number(condition.repeat||1)),1),killed:false}};
+        }
+        if(kind==="w"||kind==="ws")for(const role of local)states[role]=ctx[role].after;
+      }
+    }
+    const need=Math.max(...(variant.agr||[]).map(condition=>Number(condition.repeat||1)),1),setup=ramsesSetupReady(variant.agr||[],states[agrRole]);
+    const descriptorState=pending?{label:"ACTIVATED",rank:800,progress:maxProgress,need,killed:false}:maxProgress>0&&maxProgress<need?{label:"PROGRESS",rank:400+Math.round(maxProgress/need*300),progress:maxProgress,need,killed:false}:setup?{label:"SETUP",rank:200,progress:0,need,killed:false}:{label:recovered?"KILLED":"INACTIVE",rank:0,progress:0,need,killed:recovered};
+    return {detected:false,activated,witness:null,descriptorState};
+  }
+  function simulateRamsesDescriptor(d,depth,width,elements,maxInstances,includeDescriptorStates=false){
+    const variants=d.ramsesVariants||[],relation=variants.some(variant=>variant.suspect==="*")?"same_word_adjacent":"single",maps=[...roleMaps(depth,width,relation)],total=maps.length*variants.length;
+    if(!variants.length)return {id:d.id,name:d.name,description:d.description,status:"unsupported",reason:"Editable descriptor 沒有可執行 variant。",injected:0,detected:0,undetected:0,coverage:null};
+    if(total>maxInstances)return {id:d.id,name:d.name,description:d.description,status:"limit",reason:`${total.toLocaleString()} instances 超過 ${maxInstances.toLocaleString()} 上限。`,injected:total,activated:0,detected:0,undetected:total,coverage:null};
+    let detected=0,activated=0,first=null;const instanceStates=[];
+    for(const variant of variants)for(const roles of maps){const outcome=simulateRamsesInstance(variant,roles,elements);if(outcome.activated)activated++;if(outcome.detected){detected++;if(!first)first=outcome.witness}if(includeDescriptorStates)instanceStates.push(outcome.descriptorState.rank)}
+    const result={id:d.id,name:d.name,description:d.description,status:"complete",relation,injected:total,activated,detected,undetected:total-detected,coverage:total?Math.round(detected/total*1e8)/1e6:null,first_detection:first};
+    if(includeDescriptorStates){result.instanceStates=instanceStates;result.descriptorProgress=instanceStates.length?Math.round(instanceStates.reduce((sum,value)=>sum+value,0)/instanceStates.length*1e4)/1e4:0;result.stateCounts=instanceStates.reduce((counts,value)=>{const label=value>=1000?"DETECTED":value>=800?"ACTIVATED":value>=400?"PROGRESS":value>=200?"SETUP":"INACTIVE";counts[label]=(counts[label]||0)+1;return counts},{})}
+    return result;
+  }
   function simulateDescriptor(d,depth,width,elements,override,maxInstances,includeDescriptorStates=false){
+    if(d.ramsesVariants)return simulateRamsesDescriptor(d,depth,width,elements,maxInstances,includeDescriptorStates);
     if(!d.supported)return {id:d.id,name:d.name,description:d.description,status:"unsupported",reason:d.unsupported_reason,injected:0,detected:0,undetected:0,coverage:null};
     if(d.required_operation&&!elements.some(element=>(element.operations||[]).some(operation=>operation.kind===d.required_operation)))return {id:d.id,name:d.name,description:d.description,status:"not-applicable",reason:d.not_applicable_reason||`需要 ${d.required_operation} operation。`,injected:0,activated:0,detected:0,undetected:0,coverage:null};
     const relation=d.relation!=="single"&&override?override:d.relation;
@@ -157,7 +214,7 @@
     const elements=request.sequence||[];if(!elements.length)throw new Error("至少需要一個 sequence element");
     const faults=request.faults&&request.faults.length?request.faults:descriptors.map(x=>x.id),max=Number(request.maxInstances||250000),relation=request.couplingRelation||"same_word_adjacent";
     const includeDescriptorStates=Boolean(request.includeDescriptorStates);
-    const models=faults.map(id=>{if(!byId[id])throw new Error(`Unknown descriptor: ${id}`);return simulateDescriptor(byId[id],depth,width,elements,relation,max,includeDescriptorStates)});
+    const descriptorOverrides=request.descriptorOverrides||{},models=faults.map(id=>{if(!byId[id])throw new Error(`Unknown descriptor: ${id}`);const descriptor=descriptorOverrides[id]?{...byId[id],...clone(descriptorOverrides[id]),id}:byId[id];return simulateDescriptor(descriptor,depth,width,elements,relation,max,includeDescriptorStates)});
     const complete=models.filter(x=>x.status==="complete"),injected=complete.reduce((s,x)=>s+x.injected,0),detected=complete.reduce((s,x)=>s+x.detected,0);
     return {schema:"sttmram-fault-coverage/v1",memory:{depth,dataWidth:width},algorithm:request.algorithm||"Custom sequence",operationComplexity:request.operationComplexity,couplingRelation:relation,models,summary:{injected,detected,undetected:injected-detected,weightedCoverage:injected?Math.round(detected/injected*1e8)/1e6:null,executableModels:complete.length,unsupportedModels:models.length-complete.length},elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6};
   }
@@ -204,8 +261,8 @@
     }
     return out;
   }
-  function evaluate(elements,faults){
-    const result=simulate({memory:{depth:4,dataWidth:2},sequence:elements,faults,couplingRelation:"same_word_adjacent",maxInstances:10000,includeDescriptorStates:true});
+  function evaluate(elements,faults,descriptorOverrides){
+    const result=simulate({memory:{depth:4,dataWidth:2},sequence:elements,faults,couplingRelation:"same_word_adjacent",maxInstances:10000,includeDescriptorStates:true,descriptorOverrides});
     let sum=0,total=0,detectedModels=0;const coverages={},descriptorProgress={},descriptorStates={},stateCounts={};
     result.models.forEach((m,i)=>{
       coverages[m.id]=m.coverage;descriptorProgress[m.id]=m.descriptorProgress??-1;descriptorStates[m.id]=m.instanceStates||[];stateCounts[m.id]=m.stateCounts||{};
@@ -292,27 +349,27 @@
     }
     return null;
   }
-  function minimizeCandidate(candidate,faults){
+  function minimizeCandidate(candidate,faults,descriptorOverrides){
     if(!fullCoverage(candidate))return candidate;
     let elements=clone(candidate.elements),changed=true;
     while(changed){
       changed=false;
       outer:for(let ei=elements.length-1;ei>=0;ei--)for(let oi=elements[ei].operations.length-1;oi>=0;oi--){
         let trial=clone(elements);trial[ei].operations.splice(oi,1);if(!trial[ei].operations.length)trial.splice(ei,1);if(!trial.length)continue;trial=normalizeReadPatterns(trial);
-        const assessed={usedN:countN(trial),elements:trial,...evaluate(trial,faults)};
+        const assessed={usedN:countN(trial),elements:trial,...evaluate(trial,faults,descriptorOverrides)};
         if(fullCoverage(assessed)){elements=trial;changed=true;break outer}
       }
     }
-    return {usedN:countN(elements),elements,...evaluate(elements,faults),irredundant:true};
+    return {usedN:countN(elements),elements,...evaluate(elements,faults,descriptorOverrides),irredundant:true};
   }
   function synthesize(request){
     const started=performance.now(),maxN=Number(request.maxN??request.budgetN),frontierLimit=Number(request.frontierLimit??request.attempts??60);
     if(!Number.isInteger(maxN)||maxN<1||maxN>100)throw new Error("Maximum N 必須為 1–100");
     if(!Number.isInteger(frontierLimit)||frontierLimit<10||frontierLimit>1000)throw new Error("Frontier limit 必須為 10–1000");
-    const faults=(request.faults||[]).filter(x=>byId[x]);if(!faults.length)throw new Error("至少選擇一個 fault descriptor");
+    const faults=(request.faults||[]).filter(x=>byId[x]),descriptorOverrides=request.descriptorOverrides||{};if(!faults.length)throw new Error("至少選擇一個 fault descriptor");
     let evaluatedCandidates=0,frontier=[],history=[],stopReason="maximum-n";
     const roots=[];for(const pattern of patterns)for(const direction of directions)roots.push([{direction,operations:[{kind:"w",pattern}]}]);
-    frontier=roots.map(elements=>({usedN:1,elements,...evaluate(elements,faults)}));evaluatedCandidates+=frontier.length;
+    frontier=roots.map(elements=>({usedN:1,elements,...evaluate(elements,faults,descriptorOverrides)}));evaluatedCandidates+=frontier.length;
     frontier=pruneLevel(frontier,frontierLimit,faults);
     history.push({n:1,generated:roots.length,evaluated:roots.length,contributed:frontier.length,targetContributed:frontier.length,improved:frontier.length,kept:frontier.length,activeFault:activeTargetFault(frontier[0],faults),bestScore:frontier[0]?.score??0,bestDescriptorProgress:frontier[0]?.descriptorVector??[],fullCoverage:frontier.some(fullCoverage)});
     let stoppedAtN=1;
@@ -328,7 +385,7 @@
         }
         if(!added)break;
       }
-      const assessed=generated.map(({elements,parent})=>({usedN:n,elements,parentVector:parent.priorityVector,parentStateVector:parent.stateVector,parentDescriptorStates:parent.descriptorStates,...evaluate(elements,faults)}));evaluatedCandidates+=assessed.length;
+      const assessed=generated.map(({elements,parent})=>({usedN:n,elements,parentVector:parent.priorityVector,parentStateVector:parent.stateVector,parentDescriptorStates:parent.descriptorStates,...evaluate(elements,faults,descriptorOverrides)}));evaluatedCandidates+=assessed.length;
       const coverageContributed=assessed.filter(candidate=>coverageContribution(candidate,candidate.parentVector));
       const descriptorContributed=assessed.filter(candidate=>descriptorContribution(candidate,candidate.parentStateVector));
       const contributed=assessed.filter(candidate=>coverageContribution(candidate,candidate.parentVector)||descriptorContribution(candidate,candidate.parentStateVector));
@@ -340,28 +397,28 @@
       if(!frontier.length){stopReason="frontier-empty";break}
     }
     let ranked=[...frontier].sort((a,b)=>compareCandidates(a,b,faults)).slice(0,5);
-    ranked=ranked.map(candidate=>minimizeCandidate(candidate,faults)).sort((a,b)=>compareCandidates(a,b,faults));
+    ranked=ranked.map(candidate=>minimizeCandidate(candidate,faults,descriptorOverrides)).sort((a,b)=>compareCandidates(a,b,faults));
     const top=ranked.map((x,i)=>({...x,rank:i+1,name:`Hybrid TAGS March ${x.usedN}N · Candidate ${i+1}`}));
     return {schema:"sttmram-tags-synthesis/v5",method:"Hybrid Coverage-Descriptor TAGS",maxN,frontierLimit,stoppedAtN,stopReason,history,canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,rankingMode:"coverage-contribution-plus-descriptor-pareto-with-strict-priority",activeTargetFault:activeTargetFault(top[0],faults),candidates:top,evaluatedCandidates,elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6,note:"先依論文 TAGS 保留 coverage contribution，再保留 SETUP、PROGRESS、ACTIVATED、DETECTED descriptor contribution；coverage 與 descriptor state 共同做 Pareto dominance，fault priority 只用於超額候選排序。"};
   }
   function analyze(request){
-    const started=performance.now(),faults=request.faults||descriptors.map(x=>x.id),elements=groupMarchElements(request.sequence||request.elements||[]);
+    const started=performance.now(),faults=request.faults||descriptors.map(x=>x.id),elements=groupMarchElements(request.sequence||request.elements||[]),descriptorOverrides=request.descriptorOverrides||{};
     if(!elements.length)throw new Error("Analysis sequence 不可為空");
-    const metrics=evaluate(elements,faults),usedN=countN(elements);
+    const metrics=evaluate(elements,faults,descriptorOverrides),usedN=countN(elements);
     return {schema:"sttmram-tags-analysis/v1",method:"Fixed-Algorithm Fault-Descriptor TAGS Analysis",canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,candidate:{...metrics,rank:1,name:request.name||`Existing March ${usedN}N`,usedN,elements},elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6};
   }
   function optimize(request){
-    const started=performance.now(),faults=request.faults||descriptors.map(x=>x.id);let elements=groupMarchElements(request.sequence||request.elements||[]);
+    const started=performance.now(),faults=request.faults||descriptors.map(x=>x.id),descriptorOverrides=request.descriptorOverrides||{};let elements=groupMarchElements(request.sequence||request.elements||[]);
     if(!elements.length)throw new Error("Optimization sequence 不可為空");
-    const originalN=countN(elements),baseline=evaluate(elements,faults),preserves=metrics=>faults.every(id=>baseline.coverages[id]==null||Number(metrics.coverages[id])>=Number(baseline.coverages[id]));
+    const originalN=countN(elements),baseline=evaluate(elements,faults,descriptorOverrides),preserves=metrics=>faults.every(id=>baseline.coverages[id]==null||Number(metrics.coverages[id])>=Number(baseline.coverages[id]));
     let removedN=0,passes=0,changed=true;
     while(changed){changed=false;passes++;
       outer:for(let ei=elements.length-1;ei>=0;ei--)for(let oi=elements[ei].operations.length-1;oi>=0;oi--){
         let trial=clone(elements);trial[ei].operations.splice(oi,1);if(!trial[ei].operations.length)trial.splice(ei,1);if(!trial.length)continue;trial=normalizeReadPatterns(trial);
-        const metrics=evaluate(trial,faults);if(preserves(metrics)){elements=trial;removedN++;changed=true;break outer}
+        const metrics=evaluate(trial,faults,descriptorOverrides);if(preserves(metrics)){elements=trial;removedN++;changed=true;break outer}
       }
     }
-    const metrics=evaluate(elements,faults),usedN=countN(elements);
+    const metrics=evaluate(elements,faults,descriptorOverrides),usedN=countN(elements);
     return {schema:"sttmram-tags-optimization/v1",method:"Coverage-Preserving Greedy Irredundancy",canonicalMemory:{depth:4,dataWidth:2},faultPriority:faults,originalN,usedN,removedN,passes,candidate:{...metrics,rank:1,name:request.name||`Optimized March ${usedN}N`,usedN,elements,originalN,removedN},elapsedSeconds:Math.round((performance.now()-started)*1000)/1e6};
   }
   return {descriptors:clone(descriptors),simulate,synthesize,analyze,optimize,countN,groupMarchElements};

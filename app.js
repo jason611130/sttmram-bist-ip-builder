@@ -6,8 +6,9 @@ let activeFaultCoverageKey = "", activeFaultCoverageLabel = "";
 let faultDescriptors = [], selectedDescriptorIds = new Set(), faultPriority = [], simulationResult = null, engineOnline = false;
 let synthesisResult = null, customMarch = null;
 try{customMarch=JSON.parse(localStorage.getItem("sttmram-custom-march"))||null}catch{customMarch=null}
+let browserDescriptorOverrides={};try{browserDescriptorOverrides=JSON.parse(localStorage.getItem("sttmram-ramses-descriptor-overrides-v1"))||{}}catch{browserDescriptorOverrides={}}
 let bistBrowserPriority=FaultEngine.descriptors.map(d=>d.id),bistBrowserSelected=new Set(bistBrowserPriority),bistBrowserSynthesis=null,bistBrowserRequestId=0;
-const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.32.0");
+const bistBrowserPending=new Map(),bistBrowserWorker=new Worker("fault-worker.js?v=2.33.0");
 bistBrowserWorker.onmessage=({data})=>{const pending=bistBrowserPending.get(data.id);if(!pending)return;bistBrowserPending.delete(data.id);data.ok?pending.resolve(data.result):pending.reject(new Error(data.error))};
 bistBrowserWorker.onerror=error=>setBistBrowserStatus(`Worker 錯誤：${error.message}`,"error");
 function callBistBrowserWorker(type,payload){return new Promise((resolve,reject)=>{const id=++bistBrowserRequestId;bistBrowserPending.set(id,{resolve,reject});bistBrowserWorker.postMessage({id,type,payload})})}
@@ -49,13 +50,13 @@ function saveBistBrowserSettings(){
   localStorage.setItem("sttmram-simulator-settings",JSON.stringify(saved));
 }
 function bistDescriptorInstances(d,depth,width,relation){
-  if(!d.supported||d.required_operation)return 0;
-  const active=d.relation!=="single"?relation:"single";
+  if(!d.supported||d.required_operation&&!d.ramsesVariants)return 0;
+  const active=d.ramsesVariants?(d.ramsesVariants.some(variant=>variant.suspect==="*")?relation:"single"):(d.relation!=="single"?relation:"single");
   const maps=active==="single"?depth*width:active==="same_word_adjacent"?depth*Math.max(0,width-1)*2:Math.max(0,depth-1)*width*2;
-  return maps*(d.variants?.length||1);
+  return maps*(d.ramsesVariants?.length||d.variants?.length||1);
 }
 function updateBistBrowserLimit(c=readConfig()){
-  const relation="same_word_adjacent",counts=bistBrowserPriority.filter(id=>bistBrowserSelected.has(id)).map(id=>{const d=FaultEngine.descriptors.find(x=>x.id===id);return {id,count:bistDescriptorInstances(d,c.depth,c.dataWidth,relation)}});
+  const relation="same_word_adjacent",counts=bistBrowserPriority.filter(id=>bistBrowserSelected.has(id)).map(id=>{const base=FaultEngine.descriptors.find(x=>x.id===id),d=browserDescriptorOverrides[id]?{...base,...browserDescriptorOverrides[id]}:base;return {id,count:bistDescriptorInstances(d,c.depth,c.dataWidth,relation)}});
   const largest=counts.reduce((best,x)=>x.count>best.count?x:best,{id:"—",count:1});
   $("bistBrowserLimit").value=largest.count;
   $("bistBrowserLimitNote").textContent=`${largest.id} 最大需求；依 ${c.depth.toLocaleString()} × ${c.dataWidth.toLocaleString()} 自動計算`;
@@ -574,12 +575,12 @@ async function runBistBrowserSearch(){
   if(!faults.length){setBistBrowserStatus("至少選擇一種 Fault","error");return}
   const button=$("bistBrowserSearchBtn");button.disabled=true;saveBistBrowserSettings();setBistBrowserStatus(`TAGS 正從 1N 逐層擴展至最多 ${budget}N…`,"busy");
   try{
-    bistBrowserSynthesis=await callBistBrowserWorker("synthesize",{maxN:budget,frontierLimit:attempts,faults});
+    browserDescriptorOverrides=JSON.parse(localStorage.getItem("sttmram-ramses-descriptor-overrides-v1"))||{};bistBrowserSynthesis=await callBistBrowserWorker("synthesize",{maxN:budget,frontierLimit:attempts,faults,descriptorOverrides:browserDescriptorOverrides});
     if(!bistBrowserSynthesis.candidates.length)throw new Error("沒有可用候選演算法");
     const verified=[];
     for(let index=0;index<bistBrowserSynthesis.candidates.length;index++){
       const candidate=bistBrowserSynthesis.candidates[index];setBistBrowserStatus(`TAGS 已停在 ${bistBrowserSynthesis.stoppedAtN}N；正在用 ${c.depth} × ${c.dataWidth} 驗證候選 ${index+1}/${bistBrowserSynthesis.candidates.length}…`,"busy");
-      const result=await callBistBrowserWorker("simulate",{memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:candidate.name,operationComplexity:`${candidate.usedN}N`,sequence:candidate.elements,faults,couplingRelation:"same_word_adjacent",maxInstances:updateBistBrowserLimit(c)});verified.push({candidate,result});
+      const result=await callBistBrowserWorker("simulate",{memory:{depth:c.depth,dataWidth:c.dataWidth},algorithm:candidate.name,operationComplexity:`${candidate.usedN}N`,sequence:candidate.elements,faults,couplingRelation:"same_word_adjacent",maxInstances:updateBistBrowserLimit(c),descriptorOverrides:browserDescriptorOverrides});verified.push({candidate,result});
     }
     verified.sort((a,b)=>compareFullGeometry(a,b,faults));const {candidate,result}=verified[0];
     customMarch={...candidate,name:`TAGS March ${candidate.usedN}N（BIST 自動搜尋）`};localStorage.setItem("sttmram-custom-march",JSON.stringify(customMarch));localStorage.setItem("sttmram-custom-march-enabled","true");$("enableCustomMarch").disabled=false;$("enableCustomMarch").checked=true;

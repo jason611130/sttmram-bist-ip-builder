@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="在瀏覽器內使用 TAGS 搜尋 March test 並計算 STT-MRAM fault coverage。">
   <title>STT-MRAM Fault Simulator</title>
-  <link rel="stylesheet" href="styles.css?v=2.32.0">
+  <link rel="stylesheet" href="styles.css?v=2.33.0">
 </head>
 <body class="simulator-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">M</span><div><strong>STT-MRAM BIST</strong><small>Fault Simulator</small></div></a>
     <nav class="site-nav" aria-label="主要功能"><a href="index.html">BIST Builder</a><a class="active" href="fault-simulator.html">Fault Simulator</a></nav>
-    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.32</span></div>
+    <div class="status"><span class="dot"></span> Browser Worker <span class="version">v2.33</span></div>
   </header>
 
   <main class="sim-main">
@@ -29,6 +29,13 @@
       <section class="priority-panel">
         <div class="panel-heading"><div><p class="step">02 / HYBRID PRIORITY</p><h2>Fault Descriptors</h2></div><small>14 種 Static／Dynamic fault；排序用於 Pareto 候選超額時的保留次序，越上方優先。</small></div>
         <div id="faultPriorityList" class="priority-list"></div>
+        <section id="descriptorEditor" class="descriptor-source-editor" hidden>
+          <header><div><small>RAMSES FAULT DESCRIPTOR</small><h3 id="descriptorEditorTitle">Fault descriptor</h3></div><button id="descriptorCloseBtn" type="button" aria-label="關閉 descriptor 編輯器">關閉</button></header>
+          <p>每個 <code>#</code> 區塊是一個 variant。AGR 為激發條件、SPT 為位置（<code>@</code> 本 cell、<code>*</code> 相鄰 victim）、VTM 為觀察條件、RCV 為遮蔽或恢復條件。</p>
+          <textarea id="descriptorSource" spellcheck="false" aria-label="RAMSES fault descriptor source"></textarea>
+          <div class="descriptor-syntax"><span>Flags</span><code>R0 R1 W0 W1 UTR DTR NW0 NW1 WS0 WS1 IDLE0 IDLE1</code><span>Dynamic</span><code>R0x4 · UTR+PRE</code></div>
+          <footer><span id="descriptorEditorStatus"></span><div><button id="descriptorResetBtn" type="button">還原內建</button><button id="descriptorSaveBtn" class="accent" type="button">驗證並儲存</button></div></footer>
+        </section>
       </section>
 
       <div class="result-pair sim-wide">
@@ -66,7 +73,7 @@
     </section>
   </main>
   <footer><span>STT-MRAM Fault Simulator</span><span>Descriptor-driven · browser-only · no localhost required</span></footer>
-  <script src="fault-engine.js?v=2.32.0"></script>
-  <script src="fault-simulator.js?v=2.32.0"></script>
+  <script src="fault-engine.js?v=2.33.0"></script>
+  <script src="fault-simulator.js?v=2.33.0"></script>
 </body>
 </html>

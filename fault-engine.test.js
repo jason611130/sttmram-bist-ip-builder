@@ -50,6 +50,16 @@ const dAcrossElements=engine.simulate({
 });
 assert.equal(dAcrossElements.models[0].coverage,0,"reads separated by full-memory March passes are not consecutive accesses to one cell");
 
+const editableDirf={dIRF:{supported:true,ramsesVariants:[
+  {id:"editable-dIRF0",suspect:"@",agr:[{flag:"R0",repeat:4}],vtm:[{flag:"R0",repeat:1}],rcv:[{flag:"W0",repeat:1},{flag:"W1",repeat:1}]}
+]}};
+const editableDirfResult=engine.simulate({
+  memory:{depth:4,dataWidth:2},faults:["dIRF"],maxInstances:1000,descriptorOverrides:editableDirf,
+  sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"r",pattern:"0"},{kind:"r",pattern:"0"},{kind:"r",pattern:"0"},{kind:"r",pattern:"0"}]}]
+});
+assert.equal(editableDirfResult.models[0].coverage,100,"editable RAMSES descriptor must drive simulation");
+assert.match(editableDirfResult.models[0].first_detection.instance,/editable-dIRF0/);
+
 const tf=engine.simulate({
   memory:{depth:4,dataWidth:2},faults:["TF"],maxInstances:1000,
   sequence:[{direction:"up",operations:[{kind:"w",pattern:"0"},{kind:"w",pattern:"1"},{kind:"r",pattern:"1"},{kind:"w",pattern:"0"},{kind:"r",pattern:"0"}]}]
